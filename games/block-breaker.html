@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Block Breaker</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let running = true;
+
+    // Player
+    const player = { x: canvas.width/2 - 50, y: canvas.height - 20, width: 100, height: 15, dx: 0, speed: 6 };
+    // Ball
+    const ball = { x: canvas.width/2, y: canvas.height/2, radius: 8, dx: 4, dy: -4 };
+    // Bricks
+    const cols = 8, rows = 5;
+    const bricks = [];
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        bricks.push({ x: 80 + c * 85, y: 40 + r * 25, status: 1, width: 75, height: 20 });
+      }
+    }
+    // Controls
+    document.addEventListener('keydown', e => { if(e.key === 'ArrowLeft') player.dx = -player.speed; if(e.key === 'ArrowRight') player.dx = player.speed; });
+    document.addEventListener('keyup', e => { if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') player.dx = 0; });
+
+    function drawPlayer() {
+      ctx.fillStyle = '#00ff00';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+    function drawBall() {
+      ctx.fillStyle = '#ffdd00';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+      ctx.fill();
+    }
+    function drawBricks() {
+      bricks.forEach(b => {
+        if(b.status === 1) {
+          ctx.fillStyle = '#ff6b6b';
+          ctx.fillRect(b.x, b.y, b.width, b.height);
+        }
+      });
+    }
+    function collision() {
+      for(let i = bricks.length - 1; i >= 0; i--) {
+        const b = bricks[i];
+        if(b.status === 1) {
+          if(ball.x + ball.radius > b.x && ball.x - ball.radius < b.x + b.width &&
+             ball.y + ball.radius > b.y && ball.y - ball.radius < b.y + b.height) {
+            b.status = 0;
+            ball.dy = -ball.dy;
+          }
+        }
+      }
+    }
+    function move() {
+      // Player move
+      player.x += player.dx;
+      if(player.x < 0) player.x = 0;
+      if(player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+      // Ball move
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+
+      // Wall collision
+      if(ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) ball.dx = -ball.dx;
+      if(ball.y - ball.radius < 0) ball.dy = -ball.dy;
+
+      // Player collision
+      if(ball.y + ball.radius > player.y && ball.y - ball.radius < player.y + player.height &&
+         ball.x > player.x && ball.x < player.x + player.width) {
+        ball.dy = -ball.dy;
+      }
+
+      // Brick collision
+      collision();
+
+      // Game over
+      if(ball.y + ball.radius > canvas.height) {
+        alert('Game Over! リロードしてね。');
+        running = false;
+      }
+
+      // Win
+      const left = bricks.filter(b => b.status === 1).length;
+      if(left === 0) {
+        alert('You Win! リロードしてね。');
+        running = false;
+      }
+    }
+    function update() {
+      if(!running) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBricks();
+      drawBall();
+      drawPlayer();
+      move();
+      requestAnimationFrame(update);
+    }
+    update();
+  </script>
+</body>
+</html>

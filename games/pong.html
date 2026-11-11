@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Pong</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let running = true;
+
+    // Paddle A (left)
+    const paddleA = { x: 20, y: canvas.height/2 - 50, width: 10, height: 100, dy: 0, speed: 5 };
+    // Paddle B (right)
+    const paddleB = { x: canvas.width - 30, y: canvas.height/2 - 50, width: 10, height: 100, dy: 0, speed: 5 };
+    // Ball
+    const ball = { x: canvas.width/2, y: canvas.height/2, radius: 8, dx: 4, dy: 4 };
+
+    // Controls
+    let wPressed = false, sPressed = false, upPressed = false, downPressed = false;
+    document.addEventListener('keydown', e => {
+      if(e.key === 'w') wPressed = true;
+      if(e.key === 's') sPressed = true;
+      if(e.key === 'Up') upPressed = true;
+      if(e.key === 'Down') downPressed = true;
+    });
+    document.addEventListener('keyup', e => {
+      if(e.key === 'w') wPressed = false;
+      if(e.key === 's') sPressed = false;
+      if(e.key === 'Up') upPressed = false;
+      if(e.key === 'Down') downPressed = false;
+    });
+
+    function movePaddles() {
+      // Paddle A
+      if(wPressed && paddleA.y > 0) paddleA.y -= paddleA.speed;
+      if(sPressed && paddleA.y + paddleA.height < canvas.height) paddleA.y += paddleA.speed;
+      // Paddle B
+      if(upPressed && paddleB.y > 0) paddleB.y -= paddleB.speed;
+      if(downPressed && paddleB.y + paddleB.height < canvas.height) paddleB.y += paddleB.speed;
+    }
+    function draw() {
+      // Clear
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Center line
+      ctx.fillStyle = '#555';
+      for(let i = 0; i < canvas.height; i += 20) {
+        ctx.fillRect(canvas.width/2 - 4, i, 8, 10);
+      }
+
+      // Paddles
+      ctx.fillStyle = '#00f';
+      ctx.fillRect(paddleA.x, paddleA.y, paddleA.width, paddleA.height);
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(paddleB.x, paddleB.y, paddleB.width, paddleB.height);
+
+      // Ball
+      ctx.fillStyle = '#ffd';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+      ctx.fill();
+    }
+    function collision() {
+      // Ball vs paddles
+      if(ball.x - ball.radius < paddleA.x + paddleA.width &&
+         ball.y > paddleA.y && ball.y < paddleA.y + paddleA.height) {
+        ball.dx = -Math.abs(ball.dx);
+        ball.y += ball.dy * 0.2; // slight angle tweak
+      }
+      if(ball.x + ball.radius > paddleB.x &&
+         ball.y > paddleB.y && ball.y < paddleB.y + paddleB.height) {
+        ball.dx = Math.abs(ball.dx);
+        ball.y += ball.dy * 0.2;
+      }
+      // Ball vs top/bottom
+      if(ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+        ball.dy = -ball.dy;
+      }
+    }
+    function reset() {
+      ball.x = canvas.width/2;
+      ball.y = canvas.height/2;
+      ball.dx = 4 * (Math.random() > 0.5 ? 1 : -1);
+      ball.dy = 4 * (Math.random() > 0.5 ? 1 : -1);
+    }
+    function update() {
+      if(!running) return;
+      movePaddles();
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+      draw();
+      collision();
+      if(ball.x < 0 || ball.x > canvas.width) {
+        alert('Player B scores! リセットします...');
+        reset();
+      }
+      requestAnimationFrame(update);
+    }
+    update();
+  </script>
+</body>
+</html>

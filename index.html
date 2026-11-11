@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Meidochan Games Portal</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #111; color: #eee; }
+    header { background: #222; padding: 1rem; text-align: center; }
+    h1 { margin: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; padding: 2rem; }
+    .game-card { background: #2a2a2a; border: 2px solid #555; border-radius: 8px; padding: 1rem; text-align: center; }
+    .game-card h3 { margin: 0.5rem 0; font-size: 1rem; }
+    .game-card a { color: #ffdd00; text-decoration: none; }
+    .game-card a:hover { color: #ffff00; }
+    #game-area { min-height: 400px; background: #222; padding: 2rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Meidochan Games</h1>
+    <p>面白い定番ミニゲームが遊べるポータルサイト</p>
+  </header>
+  <div class="grid" id="game-grid">
+    <!-- Games loaded by JS -->
+  </div>
+  <div id="game-area">
+    <h2>ゲームを選んでね</h2>
+    <p>左のゲーム一覧から遊んでみてください。</p>
+  </div>
+
+  <script>
+    // ゲーム一覧をレンダリング
+    async function loadGames() {
+      try {
+        const res = await fetch('/games');
+        const games = await res.json();
+        const grid = document.getElementById('game-grid');
+        grid.innerHTML = '';
+        games.forEach(g => {
+          const card = document.createElement('div');
+          card.className = 'game-card';
+          card.innerHTML = `<h3>${g.name}</h3><a href="/games/${g.filename}" target="_blank">遊ぶ →</a>`;
+          grid.appendChild(card);
+        });
+      } catch (e) {
+        console.error('Failed to load games:', e);
+        // Fallback static games
+        const fallback = [
+          {name: 'Block Breaker', filename: 'block-breaker.html'},
+          {name: 'Pong', filename: 'pong.html'},
+          {name: 'Snake', filename: 'snake.html'}
+        ];
+        const grid = document.getElementById('game-grid');
+        fallback.forEach(g => {
+          const card = document.createElement('div');
+          card.className = 'game-card';
+          card.innerHTML = `<h3>${g.name}</h3><a href="/games/${g.filename}" target="_blank">遊ぶ →</a>`;
+          grid.appendChild(card);
+        });
+      }
+    }
+    loadGames();
+
+    // デフォルトでブロック崩しを表示
+    document.querySelectorAll('.game-card a')[0].addEventListener('click', e => {
+      e.preventDefault();
+      const area = document.getElementById('game-area');
+      area.innerHTML = `<iframe src="/games/block-breaker.html" style="width:100%;height:500px;border:none;"></iframe>`;
+    });
+  </script>
+</body>
+</html>
