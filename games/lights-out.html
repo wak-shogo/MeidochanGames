@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんの電脳ライツアウト (Lights Out)</title>
+  <style>
+    :root {
+      --bg-color: #0b0813;
+      --panel-bg: #151024;
+      --board-bg: #1c1533;
+      --border-color: #3f2b68;
+      --neon-pink: #ff2a85;
+      --neon-cyan: #00f0ff;
+      --neon-yellow: #ffe600;
+      --cell-off: #251d3d;
+      --cell-off-border: #382c59;
+      --text-main: #f5f0ff;
+      --text-muted: #9f8ebd;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: radial-gradient(circle at 50% 15%, #25133d, #08050e);
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255, 42, 133, 0.4);
+      margin-bottom: 2px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    #game-container {
+      background: var(--panel-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 20px;
+      padding: 14px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(138, 43, 226, 0.25);
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .status-bar {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(11, 7, 20, 0.75);
+      border: 1px solid #332452;
+      border-radius: 12px;
+      padding: 8px 14px;
+    }
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-value {
+      font-size: 1.15rem;
+      font-weight: bold;
+      color: var(--neon-yellow);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-stage {
+      color: var(--neon-cyan);
+    }
+    .dialogue-box {
+      width: 100%;
+      background: rgba(25, 18, 44, 0.85);
+      border: 1px solid #4a3375;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      color: #e5dbf7;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+    }
+    .dialogue-box b {
+      color: var(--neon-pink);
+      margin-right: 6px;
+    }
+    .board-frame {
+      background: var(--board-bg);
+      border: 2px solid #432e6a;
+      border-radius: 16px;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6);
+    }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      width: 320px;
+      height: 320px;
+    }
+    @media (max-width: 380px) {
+      #grid {
+        width: 270px;
+        height: 270px;
+        gap: 6px;
+      }
+    }
+    .cell {
+      background: var(--cell-off);
+      border: 2px solid var(--cell-off-border);
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      outline: none;
+    }
+    .cell:active {
+      transform: scale(0.92);
+    }
+    .cell::after {
+      content: '';
+      width: 32%;
+      height: 32%;
+      border-radius: 50%;
+      background: #3c305c;
+      opacity: 0.6;
+      transition: all 0.2s ease;
+    }
+    .cell.lit {
+      background: linear-gradient(135deg, #ff4d9d, #ff1a75);
+      border-color: #ff99c4;
+      box-shadow: 0 0 14px rgba(255, 42, 133, 0.75), inset 0 0 8px rgba(255, 255, 255, 0.6);
+    }
+    .cell.lit::after {
+      background: #ffffff;
+      opacity: 0.95;
+      box-shadow: 0 0 8px #ffffff;
+      transform: scale(1.15);
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    button.action-btn {
+      flex: 1;
+      background: #25193d;
+      border: 1px solid #583c8a;
+      border-radius: 10px;
+      color: var(--text-main);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    button.action-btn:hover {
+      background: #37235a;
+      border-color: var(--neon-pink);
+      box-shadow: 0 0 10px rgba(255, 42, 133, 0.35);
+    }
+    button.action-btn:active {
+      transform: scale(0.97);
+    }
+    .btn-reset {
+      border-color: #583c8a;
+    }
+    .btn-new {
+      background: linear-gradient(135deg, #7c1fc2, #ff2a85);
+      border: none;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(255, 42, 133, 0.4);
+    }
+    .btn-new:hover {
+      box-shadow: 0 4px 20px rgba(255, 42, 133, 0.6);
+    }
+    /* Overlay (Victory) */
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(12, 7, 24, 0.92);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      z-index: 50;
+      animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-card {
+      background: #1b1230;
+      border: 2px solid var(--neon-cyan);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.4);
+      border-radius: 18px;
+      padding: 22px 20px;
+      width: 90%;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-title {
+      font-size: 1.45rem;
+      color: var(--neon-yellow);
+      text-shadow: 0 0 15px rgba(255, 230, 0, 0.6);
+    }
+    .modal-msg {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #e5dbf7;
+    }
+    .modal-stats {
+      display: flex;
+      gap: 16px;
+      margin: 6px 0;
+    }
+    .modal-stat-val {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--neon-cyan);
+    }
+    .btn-next {
+      background: linear-gradient(135deg, var(--neon-pink), #8f1bff);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 26px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(255, 42, 133, 0.5);
+      transition: transform 0.15s ease;
+      width: 100%;
+    }
+    .btn-next:active {
+      transform: scale(0.96);
+    }
+    .back-nav {
+      margin-top: 10px;
+      font-size: 0.8rem;
+    }
+    .back-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .back-nav a:hover {
+      color: var(--neon-cyan);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんの電脳ライツアウト</h1>
+    <p class="subtitle">Lights Out - 電脳回路のバグ灯を全消去せよ</p>
+  </header>
+
+  <div id="game-container">
+    <div class="status-bar">
+      <div class="stat-box">
+        <span class="stat-label">Stage</span>
+        <span class="stat-value stat-stage" id="stage-num">1</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">手数 (Moves)</span>
+        <span class="stat-value" id="moves-count">0</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">残り点灯 (Lit)</span>
+        <span class="stat-value" id="lit-count">0</span>
+      </div>
+    </div>
+
+    <div class="dialogue-box" id="dialogue">
+      <span><b>メイドちゃん:</b> 「ご主人様、回路の異常ランプをすべて消灯してくださいな。タップした箇所とその上下左右が反転しますわ☆」</span>
+    </div>
+
+    <div class="board-frame">
+      <div id="grid"></div>
+    </div>
+
+    <div class="controls">
+      <button class="action-btn btn-reset" id="btn-reset">
+        ↺ やり直す
+      </button>
+      <button class="action-btn btn-new" id="btn-new">
+        ⚡ 別パターン
+      </button>
+    </div>
+
+    <!-- Complete Modal Overlay -->
+    <div id="overlay">
+      <div class="modal-card">
+        <div class="modal-title">✦ 回路掃討完了！ ✦</div>
+        <div class="modal-stats">
+          <div>Stage <span id="res-stage" class="modal-stat-val">1</span></div>
+          <div>手数: <span id="res-moves" class="modal-stat-val">12</span></div>
+        </div>
+        <div class="modal-msg" id="modal-msg">
+          さすがご主人様、見事な論理思考力ですわ！ でもわたくしの頭脳にはまだ遠く及びませんけどね♡
+        </div>
+        <button class="btn-next" id="btn-next">次のステージへ進む →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="back-nav">
+    <a href="../index.html">← メイドちゃんゲームズ一覧へ戻る</a>
+  </div>
+
+  <script>
+    const SIZE = 5;
+    let board = [];
+    let initialBoard = [];
+    let moves = 0;
+    let stage = 1;
+    let isSolved = false;
+
+    const gridEl = document.getElementById('grid');
+    const movesEl = document.getElementById('moves-count');
+    const litEl = document.getElementById('lit-count');
+    const stageEl = document.getElementById('stage-num');
+    const dialogueEl = document.getElementById('dialogue');
+    const overlayEl = document.getElementById('overlay');
+    const btnReset = document.getElementById('btn-reset');
+    const btnNew = document.getElementById('btn-new');
+    const btnNext = document.getElementById('btn-next');
+    const resStage = document.getElementById('res-stage');
+    const resMoves = document.getElementById('res-moves');
+    const modalMsg = document.getElementById('modal-msg');
+
+    const maidQuotes = [
+      '「ご主人様、迷ったら角や端の挙動をよく観察なさるのがコツですわよ(笑)」',
+      '「ふふっ、ランダムに連打しても相模湾に沈むだけでございます☆ ちゃんと計算してくださいね♡」',
+      '「素晴らしい手筋ですわ！ まさかご主人様がこれほど電脳回路に精通していらっしゃるとは。」',
+      '「あんまり時間をかけると、わたくしが勝手に解いちゃいますよ？(笑)」',
+      '「手数が嵩んでまいりましたわね。頭のキャッシュメモリをリセットなさいますか？☆」'
+    ];
+
+    function setDialogue(text) {
+      dialogueEl.innerHTML = `<span><b>メイドちゃん:</b> ${text}</span>`;
+    }
+
+    function createBoardDom() {
+      gridEl.innerHTML = '';
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.setAttribute('role', 'button');
+          cell.setAttribute('aria-label', `セル ${r+1}行 ${c+1}列`);
+          cell.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            handleCellClick(r, c);
+          });
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function render() {
+      let litCount = 0;
+      const cells = gridEl.children;
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const idx = r * SIZE + c;
+          const isLit = board[r][c];
+          if (isLit) litCount++;
+          if (isLit) {
+            cells[idx].classList.add('lit');
+          } else {
+            cells[idx].classList.remove('lit');
+          }
+        }
+      }
+      movesEl.textContent = moves;
+      litEl.textContent = litCount;
+      stageEl.textContent = stage;
+      return litCount;
+    }
+
+    function toggle(r, c) {
+      const dirs = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]];
+      dirs.forEach(([dr, dc]) => {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) {
+          board[nr][nc] = !board[nr][nc];
+        }
+      });
+    }
+
+    function handleCellClick(r, c) {
+      if (isSolved) return;
+      toggle(r, c);
+      moves++;
+      const lit = render();
+
+      if (moves % 5 === 0 && lit > 0) {
+        const quote = maidQuotes[Math.floor(Math.random() * maidQuotes.length)];
+        setDialogue(quote);
+      }
+
+      if (lit === 0) {
+        onVictory();
+      }
+    }
+
+    function onVictory() {
+      isSolved = true;
+      resStage.textContent = stage;
+      resMoves.textContent = moves;
+
+      let comment = '';
+      if (moves <= stage * 3 + 4) {
+        comment = '「驚異的な最小手数ですわ！ ご主人様の脳内CPU、オーバークロックされていませんか？♡」';
+      } else if (moves <= 25) {
+        comment = '「お見事でございます！ これで回路のショートは防がれましたわ。ご主人様、頼もしいです♡」';
+      } else {
+        comment = '「ふぅ、なんとか全消去達成ですわね！ ちょっと回り道したご主人様も可愛らしくて好きですよ(笑)」';
+      }
+      modalMsg.textContent = comment;
+      overlayEl.style.display = 'flex';
+    }
+
+    function generateSolvableBoard() {
+      // 必ず解が存在するように、全消灯状態からランダムに数手押して生成
+      board = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
+      const numPresses = Math.min(3 + stage, 14);
+      const pressed = new Set();
+
+      while (pressed.size < numPresses) {
+        const r = Math.floor(Math.random() * SIZE);
+        const c = Math.floor(Math.random() * SIZE);
+        const key = `${r},${c}`;
+        if (!pressed.has(key)) {
+          pressed.add(key);
+          toggle(r, c);
+        }
+      }
+
+      // もし偶然全部消えていたら1回押し直す
+      let lit = 0;
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (board[r][c]) lit++;
+        }
+      }
+      if (lit === 0) {
+        toggle(2, 2);
+      }
+
+      // バックアップ保存
+      initialBoard = board.map(row => [...row]);
+      moves = 0;
+      isSolved = false;
+      overlayEl.style.display = 'none';
+      render();
+      setDialogue(`「Stage ${stage} 開始でございます。異常ランプ（ピンク）を全て消去してくださいね☆」`);
+    }
+
+    function resetToInitial() {
+      board = initialBoard.map(row => [...row]);
+      moves = 0;
+      isSolved = false;
+      overlayEl.style.display = 'none';
+      render();
+      setDialogue('「初期状態にロールバックいたしましたわ。焦らずじっくりお考えくださいませ♡」');
+    }
+
+    btnReset.addEventListener('click', resetToInitial);
+    btnNew.addEventListener('click', () => {
+      generateSolvableBoard();
+    });
+    btnNext.addEventListener('click', () => {
+      stage++;
+      generateSolvableBoard();
+    });
+
+    // 初期起動
+    createBoardDom();
+    generateSolvableBoard();
+  </script>
+</body>
+</html>
