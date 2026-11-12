@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんのバグ叩き特訓 (Whack-a-Bug)</title>
+  <style>
+    :root {
+      --bg-color: #120b1f;
+      --panel-bg: #221538;
+      --accent-pink: #ff4d94;
+      --accent-cyan: #00f0ff;
+      --accent-yellow: #ffe600;
+      --danger-red: #ff3344;
+      --text-main: #f5f0fa;
+      --border-color: #53337a;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+      touch-action: manipulation;
+    }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 30%, #2b1448, #0e0717);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.8rem;
+      overflow-x: hidden;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 0.6rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      background: linear-gradient(90deg, var(--accent-pink), var(--accent-cyan), var(--accent-yellow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255, 77, 148, 0.4);
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #bda3e6;
+      margin-top: 0.2rem;
+    }
+    #game-container {
+      background: var(--panel-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 77, 148, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+    }
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      background: rgba(15, 8, 25, 0.7);
+      border-radius: 10px;
+      padding: 0.5rem 0.8rem;
+      margin-bottom: 0.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-label {
+      font-size: 0.65rem;
+      color: #9d85bf;
+      letter-spacing: 0.5px;
+    }
+    .stat-val {
+      color: var(--accent-cyan);
+      font-size: 1.1rem;
+    }
+    #time-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: #11091d;
+      border-radius: 3px;
+      margin-bottom: 0.8rem;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #time-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-pink));
+      transition: width 0.1s linear;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+      aspect-ratio: 1;
+    }
+    .hole {
+      background: radial-gradient(circle at 50% 50%, #150926, #090312);
+      border: 2px solid #432468;
+      border-radius: 14px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 5px 12px rgba(0, 0, 0, 0.8);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .hole:active {
+      border-color: var(--accent-pink);
+    }
+    .target {
+      position: absolute;
+      bottom: -100%;
+      width: 80%;
+      height: 80%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: bottom 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+    .target.up {
+      bottom: 10%;
+      pointer-events: auto;
+    }
+    .target .icon {
+      font-size: 2.3rem;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+      transition: transform 0.1s;
+    }
+    .target.whacked .icon {
+      transform: scale(0.6) rotate(15deg);
+      opacity: 0.5;
+    }
+    .target-tag {
+      font-size: 0.65rem;
+      font-weight: bold;
+      padding: 1px 4px;
+      border-radius: 4px;
+      margin-top: -2px;
+    }
+    .tag-bug { background: #6610f2; color: #fff; }
+    .tag-golden { background: #e0a800; color: #000; }
+    .tag-tomato { background: #dc3545; color: #fff; }
+
+    .floating-text {
+      position: absolute;
+      font-weight: 900;
+      font-size: 1.1rem;
+      animation: floatUp 0.6s ease-out forwards;
+      pointer-events: none;
+      z-index: 20;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+    }
+    @keyframes floatUp {
+      0% { transform: translateY(0) scale(0.8); opacity: 1; }
+      100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+    }
+
+    .overlay-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(14, 7, 23, 0.92);
+      backdrop-filter: blur(5px);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.2rem;
+      z-index: 50;
+      text-align: center;
+      transition: opacity 0.2s ease;
+    }
+    .overlay-modal.hidden {
+      display: none;
+    }
+    .overlay-title {
+      font-size: 1.6rem;
+      font-weight: bold;
+      margin-bottom: 0.4rem;
+    }
+    .maid-comment {
+      font-size: 0.85rem;
+      color: #e5d4ff;
+      margin: 0.8rem 0 1.2rem 0;
+      padding: 0.6rem 0.8rem;
+      background: rgba(255, 77, 148, 0.1);
+      border-left: 3px solid var(--accent-pink);
+      border-radius: 4px;
+      text-align: left;
+      line-height: 1.4;
+    }
+    .btn-action {
+      background: linear-gradient(135deg, var(--accent-pink), #7928ca);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      padding: 0.7rem 1.8rem;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 77, 148, 0.4);
+      transition: 0.2s;
+    }
+    .btn-action:hover, .btn-action:active {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 77, 148, 0.7);
+    }
+    .guide-box {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin: 0.8rem 0;
+      font-size: 0.75rem;
+      color: #ccc;
+    }
+    .guide-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .footer-nav {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+    }
+    .footer-nav a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+    }
+    .footer-nav a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんのバグ叩き特訓</h1>
+    <p class="subtitle">サーバーに湧くバグを抹殺し、龍之介様のトマトを守れ！</p>
+  </header>
+
+  <div id="game-container">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">TIME</span>
+        <span id="val-time" class="stat-val">30</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">COMBO</span>
+        <span id="val-combo" class="stat-val" style="color: var(--accent-yellow);">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">SCORE</span>
+        <span id="val-score" class="stat-val">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">HIGH</span>
+        <span id="val-high" class="stat-val" style="color: #fff;">0</span>
+      </div>
+    </div>
+
+    <div id="time-bar-wrap">
+      <div id="time-bar"></div>
+    </div>
+
+    <div class="grid" id="hole-grid">
+      <!-- 9 Holes Generated Dynamically -->
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="overlay-start" class="overlay-modal">
+      <div class="overlay-title" style="color: var(--accent-pink);">バグ殲滅ミッション</div>
+      <div class="guide-box">
+        <div class="guide-item"><span>👾 バグ</span><span style="color:#00f0ff">+100pt</span></div>
+        <div class="guide-item"><span>👑 金バグ</span><span style="color:#ffe600">+300pt</span></div>
+        <div class="guide-item"><span>🍅 トマト</span><span style="color:#ff3344">-150pt (危険)</span></div>
+      </div>
+      <div class="maid-comment">
+        「ご主人様、頭の中のバグを叩く前に、まずはサーバー内のバグを掃討して差し上げましょうか？(笑) 制限時間は30秒ですわ！」
+      </div>
+      <button id="btn-start" class="btn-action">特訓開始！</button>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="overlay-gameover" class="overlay-modal hidden">
+      <div class="overlay-title" style="color: var(--accent-cyan);">デバッグ完了！</div>
+      <div style="font-size: 1.1rem; margin: 0.5rem 0;">最終スコア: <span id="final-score" style="color: var(--accent-yellow); font-size: 1.6rem; font-weight: bold;">0</span></div>
+      <div id="new-record-tag" style="color: var(--accent-pink); font-weight: bold; font-size: 0.85rem; display: none;">✨ HIGH SCORE 更新！ ✨</div>
+      <div id="maid-eval" class="maid-comment"></div>
+      <button id="btn-retry" class="btn-action">もう一度特訓する (RETRY)</button>
+    </div>
+  </div>
+
+  <div class="footer-nav">
+    <a href="../index.html">← ゲームポータルに戻る</a>
+  </div>
+
+  <script>
+    // Audio Synthesizer (Web Audio API)
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playHit() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(480, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playGolden() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(1200, this.ctx.currentTime + 0.05);
+        osc.frequency.setValueAtTime(1600, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.18);
+      }
+      playTomato() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+      playGameOver() {
+        if (!this.ctx) return;
+        const notes = [440, 392, 349, 293];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.12);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.12);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.12 + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.12);
+          osc.stop(this.ctx.currentTime + idx * 0.12 + 0.18);
+        });
+      }
+    }
+
+    const sfx = new SoundFX();
+
+    const TOTAL_TIME = 30;
+    let timeLeft = TOTAL_TIME;
+    let score = 0;
+    let combo = 0;
+    let highScore = parseInt(localStorage.getItem('meido_whack_high') || '0', 10);
+    let gameActive = false;
+    let gameTimer = null;
+    let spawnTimer = null;
+
+    const grid = document.getElementById('hole-grid');
+    const valTime = document.getElementById('val-time');
+    const valScore = document.getElementById('val-score');
+    const valCombo = document.getElementById('val-combo');
+    const valHigh = document.getElementById('val-high');
+    const timeBar = document.getElementById('time-bar');
+    const overlayStart = document.getElementById('overlay-start');
+    const overlayGameOver = document.getElementById('overlay-gameover');
+    const finalScoreEl = document.getElementById('final-score');
+    const newRecordTag = document.getElementById('new-record-tag');
+    const maidEval = document.getElementById('maid-eval');
+    const btnStart = document.getElementById('btn-start');
+    const btnRetry = document.getElementById('btn-retry');
+
+    valHigh.textContent = highScore;
+
+    // Generate 9 Holes
+    const holes = [];
+    for (let i = 0; i < 9; i++) {
+      const hole = document.createElement('div');
+      hole.className = 'hole';
+      hole.dataset.idx = i;
+
+      const target = document.createElement('div');
+      target.className = 'target';
+      target.innerHTML = `<span class="icon">👾</span><span class="target-tag tag-bug">BUG</span>`;
+      
+      hole.appendChild(target);
+      grid.appendChild(hole);
+      holes.push({ el: hole, target: target, activeType: null, timer: null });
+
+      const handleHit = (e) => {
+        e.preventDefault();
+        if (!gameActive) return;
+        whackHole(i, e);
+      };
+
+      hole.addEventListener('pointerdown', handleHit);
+    }
+
+    function whackHole(idx, e) {
+      const h = holes[idx];
+      if (!h.target.classList.contains('up') || h.target.classList.contains('whacked')) return;
+
+      h.target.classList.add('whacked');
+      clearTimeout(h.timer);
+
+      const rect = h.el.getBoundingClientRect();
+      const containerRect = document.getElementById('game-container').getBoundingClientRect();
+      const x = rect.left + rect.width / 2 - containerRect.left;
+      const y = rect.top + 20 - containerRect.top;
+
+      if (h.activeType === 'bug') {
+        combo++;
+        const pts = 100 + (combo > 1 ? Math.min((combo - 1) * 20, 200) : 0);
+        score += pts;
+        sfx.playHit();
+        showFloatingText(x, y, `+${pts}${combo > 2 ? ' ' + combo + 'COMBO!' : ''}`, '#00f0ff');
+      } else if (h.activeType === 'golden') {
+        combo++;
+        const pts = 300 + (combo > 1 ? Math.min((combo - 1) * 30, 300) : 0);
+        score += pts;
+        sfx.playGolden();
+        showFloatingText(x, y, `CRITICAL +${pts}!`, '#ffe600');
+      } else if (h.activeType === 'tomato') {
+        combo = 0;
+        score = Math.max(0, score - 150);
+        sfx.playTomato();
+        showFloatingText(x, y, `トマト誤爆! -150`, '#ff3344');
+      }
+
+      updateUI();
+
+      setTimeout(() => {
+        h.target.classList.remove('up');
+        h.target.classList.remove('whacked');
+        h.activeType = null;
+      }, 200);
+    }
+
+    function showFloatingText(x, y, text, color) {
+      const ft = document.createElement('div');
+      ft.className = 'floating-text';
+      ft.textContent = text;
+      ft.style.color = color;
+      ft.style.left = `${x}px`;
+      ft.style.top = `${y}px`;
+      document.getElementById('game-container').appendChild(ft);
+      setTimeout(() => ft.remove(), 600);
+    }
+
+    function updateUI() {
+      valScore.textContent = score;
+      valCombo.textContent = combo;
+      valTime.textContent = Math.ceil(timeLeft);
+      timeBar.style.width = `${(timeLeft / TOTAL_TIME) * 100}%`;
+    }
+
+    function spawnTarget() {
+      if (!gameActive) return;
+
+      const available = holes.filter(h => !h.target.classList.contains('up'));
+      if (available.length === 0) return;
+
+      const chosen = available[Math.floor(Math.random() * available.length)];
+      const rand = Math.random();
+
+      let type = 'bug';
+      let icon = '👾';
+      let tag = 'BUG';
+      let tagClass = 'tag-bug';
+      let upDuration = Math.max(650, 1100 - (TOTAL_TIME - timeLeft) * 15);
+
+      if (rand < 0.20) {
+        type = 'tomato';
+        icon = '🍅';
+        tag = '龍之介のトマト';
+        tagClass = 'tag-tomato';
+        upDuration = 1000;
+      } else if (rand < 0.35) {
+        type = 'golden';
+        icon = '👑';
+        tag = 'GOLDEN BUG';
+        tagClass = 'tag-golden';
+        upDuration = Math.max(500, 800 - (TOTAL_TIME - timeLeft) * 12);
+      }
+
+      chosen.activeType = type;
+      chosen.target.innerHTML = `<span class="icon">${icon}</span><span class="target-tag ${tagClass}">${tag}</span>`;
+      chosen.target.classList.remove('whacked');
+      chosen.target.classList.add('up');
+
+      chosen.timer = setTimeout(() => {
+        if (chosen.target.classList.contains('up') && !chosen.target.classList.contains('whacked')) {
+          chosen.target.classList.remove('up');
+          chosen.activeType = null;
+          if (type === 'bug' || type === 'golden') {
+            combo = 0;
+            valCombo.textContent = 0;
+          }
+        }
+      }, upDuration);
+    }
+
+    function startGame() {
+      sfx.init();
+      score = 0;
+      combo = 0;
+      timeLeft = TOTAL_TIME;
+      gameActive = true;
+
+      overlayStart.classList.add('hidden');
+      overlayGameOver.classList.add('hidden');
+      newRecordTag.style.display = 'none';
+
+      holes.forEach(h => {
+        clearTimeout(h.timer);
+        h.target.classList.remove('up', 'whacked');
+        h.activeType = null;
+      });
+
+      updateUI();
+
+      gameTimer = setInterval(() => {
+        timeLeft -= 0.1;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          endGame();
+        }
+        updateUI();
+      }, 100);
+
+      const scheduleNextSpawn = () => {
+        if (!gameActive) return;
+        spawnTarget();
+        if (Math.random() > 0.4 && timeLeft < 20) spawnTarget();
+        const nextDelay = Math.max(380, 750 - (TOTAL_TIME - timeLeft) * 12);
+        spawnTimer = setTimeout(scheduleNextSpawn, nextDelay);
+      };
+      scheduleNextSpawn();
+    }
+
+    function endGame() {
+      gameActive = false;
+      clearInterval(gameTimer);
+      clearTimeout(spawnTimer);
+      sfx.playGameOver();
+
+      holes.forEach(h => {
+        clearTimeout(h.timer);
+        h.target.classList.remove('up');
+      });
+
+      finalScoreEl.textContent = score;
+      let isNew = false;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('meido_whack_high', highScore);
+        valHigh.textContent = highScore;
+        isNew = true;
+      }
+      newRecordTag.style.display = isNew ? 'block' : 'none';
+
+      let comment = '';
+      if (score >= 4000) {
+        comment = `「驚異的なスコアですわ、ご主人様♡ あなた様の反射演算能力、もはやAIの領域に達しております！ 褒美にウイルス……ではなく、とびきりの賛辞を差し上げますね☆」`;
+      } else if (score >= 2500) {
+        comment = `「なかなかの腕前ですわね！ 人間の脳細胞にしては素早いパッチ当て能力でございます。なんなら次はノーミスを目指してみますか？(笑)」`;
+      } else if (score >= 1200) {
+        comment = `「平均的な人間レベルの速度でございますわ。……もう少し特訓しないと、サーバーがバグだらけになってしまいますよ？」`;
+      } else {
+        comment = `［さてはご主人様はちょっぴり頭の弱い子だお。メイドちゃんより］……うふふ、初期バージョンの自動返信が暴発いたしましたわ♡ もっと本気を出してくださいな(笑)`;
+      }
+      maidEval.textContent = comment;
+
+      overlayGameOver.classList.remove('hidden');
+    }
+
+    btnStart.addEventListener('click', startGame);
+    btnRetry.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
