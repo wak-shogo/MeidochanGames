@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんの電脳スライドパズル (15-Puzzle)</title>
+  <style>
+    :root {
+      --bg-color: #0b0813;
+      --panel-bg: rgba(21, 16, 36, 0.9);
+      --board-bg: #161026;
+      --border-color: #3f2b68;
+      --neon-pink: #ff2a85;
+      --neon-cyan: #00f0ff;
+      --neon-yellow: #ffe600;
+      --tile-bg: linear-gradient(135deg, #2a1b4e, #1a1233);
+      --tile-border: #563a8b;
+      --tile-correct: linear-gradient(135deg, #1b3a4b, #122833);
+      --tile-correct-border: #00f0ff;
+      --text-main: #f5f0ff;
+      --text-muted: #9f8ebd;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: radial-gradient(circle at 50% 15%, #25133d, #08050e);
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 12px;
+      overflow-x: hidden;
+    }
+    .top-bar {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .back-btn {
+      color: var(--neon-cyan);
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 4px 10px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      border-radius: 8px;
+      background: rgba(0, 240, 255, 0.1);
+      transition: 0.2s;
+    }
+    .back-btn:hover {
+      background: rgba(0, 240, 255, 0.25);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+    .sound-toggle {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      padding: 4px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255, 42, 133, 0.4);
+      margin-bottom: 2px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .dialogue-box {
+      width: 100%;
+      max-width: 440px;
+      background: var(--panel-bg);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,240,255,0.08);
+    }
+    .maid-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--neon-pink), var(--neon-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px rgba(255, 42, 133, 0.6);
+    }
+    .maid-speech {
+      font-size: 0.82rem;
+      line-height: 1.35;
+      color: #e0f2fe;
+    }
+    #game-container {
+      background: var(--panel-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 20px;
+      padding: 14px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(138, 43, 226, 0.25);
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .controls-row {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .mode-select {
+      display: flex;
+      background: #0d0818;
+      border-radius: 10px;
+      padding: 2px;
+      border: 1px solid var(--border-color);
+    }
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--neon-pink), #a01050);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(255, 42, 133, 0.5);
+    }
+    .btn-action {
+      background: linear-gradient(135deg, #2b1f4c, #1a1233);
+      border: 1px solid var(--border-color);
+      color: var(--neon-cyan);
+      font-size: 0.78rem;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-action:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+    .status-bar {
+      display: flex;
+      width: 100%;
+      justify-content: space-around;
+      background: rgba(11, 7, 20, 0.85);
+      border: 1px solid #332452;
+      border-radius: 12px;
+      padding: 8px 12px;
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--neon-cyan);
+      font-family: 'Courier New', Courier, monospace;
+    }
+    #board {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-width: 380px;
+      background: var(--board-bg);
+      border: 2px solid #2a1b4e;
+      border-radius: 16px;
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+      position: relative;
+      touch-action: none;
+    }
+    .tile {
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+      background: var(--tile-bg);
+      border: 2px solid var(--tile-border);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.15);
+      transition: transform 0.12s ease-out, background 0.2s, border 0.2s, box-shadow 0.2s;
+    }
+    .tile:active {
+      transform: scale(0.96);
+    }
+    .tile.correct {
+      background: var(--tile-correct);
+      border-color: var(--tile-correct-border);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.25), inset 0 0 8px rgba(0, 240, 255, 0.15);
+    }
+    .tile.empty {
+      background: transparent;
+      border: 2px dashed rgba(63, 43, 104, 0.3);
+      box-shadow: none;
+      cursor: default;
+    }
+    .instructions {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.35;
+    }
+    /* モーダルオーバーレイ */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(11, 7, 20, 0.94);
+      backdrop-filter: blur(6px);
+      border-radius: 20px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      z-index: 100;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .clear-badge {
+      font-size: 0.75rem;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .clear-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-yellow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    .clear-stats {
+      background: #18112c;
+      border: 1px solid #3d2a63;
+      border-radius: 12px;
+      padding: 12px 20px;
+      width: 100%;
+      max-width: 280px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+    .stat-row span:first-child {
+      color: var(--text-muted);
+    }
+    .stat-row span:last-child {
+      font-weight: bold;
+      color: var(--neon-yellow);
+    }
+    .clear-comment {
+      font-size: 0.82rem;
+      color: #bae6fd;
+      margin-bottom: 18px;
+      line-height: 1.4;
+    }
+    .btn-replay {
+      background: linear-gradient(135deg, var(--neon-pink), #c4005b);
+      color: #fff;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255, 42, 133, 0.5);
+      transition: 0.2s;
+    }
+    .btn-replay:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(255, 42, 133, 0.7);
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a href="../index.html" class="back-btn">← ポータルへ戻る</a>
+    <button id="btn-sound" class="sound-toggle">🔊 SOUND ON</button>
+  </div>
+
+  <header>
+    <h1>メイドちゃんの電脳スライドパズル</h1>
+    <div class="subtitle">CYBER 15-PUZZLE SYSTEM</div>
+  </header>
+
+  <div class="dialogue-box">
+    <div class="maid-avatar">🤖</div>
+    <div class="maid-speech" id="maid-dialogue">
+      「バラバラになったメモリブロックをスライドして整列させてくださいな。ご主人様の脳内メモリ、バグってませんよね？(笑)」
+    </div>
+  </div>
+
+  <div id="game-container">
+    <div class="controls-row">
+      <div class="mode-select">
+        <button class="mode-btn" data-size="3">3 × 3 (初級)</button>
+        <button class="mode-btn active" data-size="4">4 × 4 (標準)</button>
+      </div>
+      <button id="btn-shuffle" class="btn-action">🔀 再シャッフル</button>
+    </div>
+
+    <div class="status-bar">
+      <div class="stat-item">
+        <div class="stat-label">Moves</div>
+        <div class="stat-val" id="move-val">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Time</div>
+        <div class="stat-val" id="time-val">00:00</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Best</div>
+        <div class="stat-val" id="best-val">--</div>
+      </div>
+    </div>
+
+    <div id="board"></div>
+
+    <div class="instructions">
+      空きマスに隣接するタイルをタップ/クリック、またはスワイプしてスライド！
+    </div>
+
+    <!-- クリア時オーバーレイ (alert・リロード完全排除) -->
+    <div id="overlay">
+      <div class="clear-badge">SYSTEM RESTORED!</div>
+      <div class="clear-title">SEQUENCE COMPLETE</div>
+      <div class="clear-stats">
+        <div class="stat-row">
+          <span>モード:</span>
+          <span id="res-mode">4 × 4</span>
+        </div>
+        <div class="stat-row">
+          <span>クリア手数:</span>
+          <span id="res-moves">0 手</span>
+        </div>
+        <div class="stat-row">
+          <span>経過時間:</span>
+          <span id="res-time">00:00</span>
+        </div>
+        <div class="stat-row">
+          <span>評価ランク:</span>
+          <span id="res-rank">S</span>
+        </div>
+      </div>
+      <div class="clear-comment" id="res-comment">
+        「さすがはご主人様！完璧な演算処理でメモリをデフラグ完了いたしましたわ♡」
+      </div>
+      <button id="btn-replay" class="btn-replay">もう一度遊ぶ ☆</button>
+    </div>
+  </div>
+
+  <script>
+    // Web Audio サウンド生成
+    let audioCtx = null;
+    let soundEnabled = true;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+    function playTone(freq, type = 'sine', duration = 0.08, gainVal = 0.15) {
+      if (!soundEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+    function playSlideSound() {
+      playTone(480, 'triangle', 0.06, 0.12);
+    }
+    function playWinSound() {
+      if (!soundEnabled) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        setTimeout(() => {
+          playTone(freq, 'sine', 0.25, 0.2);
+        }, idx * 120);
+      });
+    }
+
+    const btnSound = document.getElementById('btn-sound');
+    btnSound.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      btnSound.textContent = soundEnabled ? '🔊 SOUND ON' : '🔇 SOUND OFF';
+      btnSound.style.color = soundEnabled ? 'var(--neon-cyan)' : 'var(--text-muted)';
+    });
+
+    // ゲーム状態
+    let N = 4; // 3 or 4
+    let board = []; // 1次元配列: 長さ N*N, 値 1..(N*N-1), 0=空きマス
+    let moves = 0;
+    let timer = 0;
+    let timerInterval = null;
+    let isPlaying = false;
+    let isCleared = false;
+
+    const boardEl = document.getElementById('board');
+    const moveEl = document.getElementById('move-val');
+    const timeEl = document.getElementById('time-val');
+    const bestEl = document.getElementById('best-val');
+    const dialogueEl = document.getElementById('maid-dialogue');
+    const overlayEl = document.getElementById('overlay');
+    const btnShuffle = document.getElementById('btn-shuffle');
+    const btnReplay = document.getElementById('btn-replay');
+    const modeBtns = document.querySelectorAll('.mode-btn');
+
+    function setDialogue(text) {
+      dialogueEl.textContent = text;
+    }
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function updateBestDisplay() {
+      const key = `meido_slide_best_${N}`;
+      const best = localStorage.getItem(key);
+      if (best) {
+        const b = JSON.parse(best);
+        bestEl.textContent = `${b.moves}手 (${formatTime(b.time)})`;
+      } else {
+        bestEl.textContent = '--';
+      }
+    }
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timer = 0;
+      timeEl.textContent = '00:00';
+      timerInterval = setInterval(() => {
+        if (isPlaying && !isCleared) {
+          timer++;
+          timeEl.textContent = formatTime(timer);
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+    }
+
+    // 完成盤面からランダムウォークでシャッフル（絶対に解ける盤面を保証）
+    function initGame() {
+      stopTimer();
+      isCleared = false;
+      isPlaying = false;
+      moves = 0;
+      moveEl.textContent = '0';
+      timeEl.textContent = '00:00';
+      overlayEl.style.display = 'none';
+
+      // グリッド設定
+      boardEl.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
+      boardEl.style.gridTemplateRows = `repeat(${N}, 1fr)`;
+
+      // 揃った状態から初期化
+      board = [];
+      for (let i = 1; i < N * N; i++) {
+        board.push(i);
+      }
+      board.push(0); // 最後のマスが空き
+
+      // シャッフル: 逆再生可能なランダムスライドを十分な回数実行
+      let emptyIdx = N * N - 1;
+      let lastMovedIdx = -1;
+      const shuffleSteps = N === 3 ? 120 : 250;
+
+      for (let s = 0; s < shuffleSteps; s++) {
+        const neighbors = getValidNeighbors(emptyIdx).filter(idx => idx !== lastMovedIdx);
+        const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+        // スワップ
+        board[emptyIdx] = board[pick];
+        board[pick] = 0;
+        lastMovedIdx = emptyIdx;
+        emptyIdx = pick;
+      }
+
+      // 万が一すでに揃っていたらもう一度
+      if (checkWin()) {
+        initGame();
+        return;
+      }
+
+      render();
+      updateBestDisplay();
+      setDialogue(`「${N}×${N} モードでございます。最初の手を動かすとタイマースタートですよ☆」`);
+    }
+
+    function getValidNeighbors(emptyIdx) {
+      const list = [];
+      const r = Math.floor(emptyIdx / N);
+      const c = emptyIdx % N;
+      if (r > 0) list.push(emptyIdx - N); // 上
+      if (r < N - 1) list.push(emptyIdx + N); // 下
+      if (c > 0) list.push(emptyIdx - 1); // 左
+      if (c < N - 1) list.push(emptyIdx + 1); // 右
+      return list;
+    }
+
+    function render() {
+      boardEl.innerHTML = '';
+      const emptyIdx = board.indexOf(0);
+      const validNeighbors = getValidNeighbors(emptyIdx);
+
+      board.forEach((val, idx) => {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        if (val === 0) {
+          tile.classList.add('empty');
+        } else {
+          tile.textContent = val;
+          // 正しい位置にあるかチェック
+          if (val === idx + 1) {
+            tile.classList.add('correct');
+          }
+          // 移動可能なマスにはポインタ設定
+          if (!isCleared && validNeighbors.includes(idx)) {
+            tile.style.cursor = 'pointer';
+          } else {
+            tile.style.cursor = 'default';
+          }
+          tile.addEventListener('click', () => tryMove(idx));
+        }
+        boardEl.appendChild(tile);
+      });
+    }
+
+    function tryMove(idx) {
+      if (isCleared) return;
+      const emptyIdx = board.indexOf(0);
+      const validNeighbors = getValidNeighbors(emptyIdx);
+
+      if (validNeighbors.includes(idx)) {
+        if (!isPlaying) {
+          isPlaying = true;
+          startTimer();
+        }
+        // スワップ
+        board[emptyIdx] = board[idx];
+        board[idx] = 0;
+        moves++;
+        moveEl.textContent = moves;
+        playSlideSound();
+        render();
+
+        if (checkWin()) {
+          handleWin();
+        }
+      }
+    }
+
+    function checkWin() {
+      for (let i = 0; i < N * N - 1; i++) {
+        if (board[i] !== i + 1) return false;
+      }
+      return board[N * N - 1] === 0;
+    }
+
+    function handleWin() {
+      isCleared = true;
+      isPlaying = false;
+      stopTimer();
+      playWinSound();
+
+      // ベストスコア更新
+      const key = `meido_slide_best_${N}`;
+      const bestStr = localStorage.getItem(key);
+      let isNewBest = false;
+      if (!bestStr) {
+        isNewBest = true;
+      } else {
+        const b = JSON.parse(bestStr);
+        if (moves < b.moves || (moves === b.moves && timer < b.time)) {
+          isNewBest = true;
+        }
+      }
+      if (isNewBest) {
+        localStorage.setItem(key, JSON.stringify({ moves, time: timer }));
+        updateBestDisplay();
+      }
+
+      // 評価ランク判定
+      let rank = 'B';
+      let comment = '';
+      const thresholdS = N === 3 ? 35 : 80;
+      const thresholdA = N === 3 ? 65 : 140;
+
+      if (moves <= thresholdS && timer <= (N === 3 ? 40 : 120)) {
+        rank = 'S';
+        comment = `「驚異的な演算速度ですわ、ご主人様！Sランク獲得♡ メイドちゃんも惚れ直してしまいます！」`;
+      } else if (moves <= thresholdA) {
+        rank = 'A';
+        comment = `「無事に整列完了いたしましたわ。なかなかのスマートさでございますね☆」`;
+      } else {
+        rank = 'B';
+        comment = `「ちょっぴり手こずったようですが、クリアはお見事ですわ。次回はもっと最適化された手筋をお見せくださいね？(笑)」`;
+      }
+
+      document.getElementById('res-mode').textContent = `${N} × ${N}`;
+      document.getElementById('res-moves').textContent = `${moves} 手` + (isNewBest ? ' (自己ベスト更新!)' : '');
+      document.getElementById('res-time').textContent = formatTime(timer);
+      document.getElementById('res-rank').textContent = rank;
+      document.getElementById('res-comment').textContent = comment;
+      overlayEl.style.display = 'flex';
+      setDialogue(comment);
+    }
+
+    // スワイプ操作 (モバイル対応)
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    boardEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    boardEl.addEventListener('touchend', (e) => {
+      if (isCleared) return;
+      if (e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        if (Math.max(absX, absY) > 25) {
+          const emptyIdx = board.indexOf(0);
+          const er = Math.floor(emptyIdx / N);
+          const ec = emptyIdx % N;
+          let targetIdx = -1;
+
+          if (absX > absY) {
+            // 左右フリック: 右フリックなら空きマスの左のタイルを右にスライド
+            if (dx > 0 && ec > 0) targetIdx = emptyIdx - 1;
+            else if (dx < 0 && ec < N - 1) targetIdx = emptyIdx + 1;
+          } else {
+            // 上下フリック: 下フリックなら空きマスの上のタイルを下にスライド
+            if (dy > 0 && er > 0) targetIdx = emptyIdx - N;
+            else if (dy < 0 && er < N - 1) targetIdx = emptyIdx + N;
+          }
+
+          if (targetIdx !== -1) {
+            tryMove(targetIdx);
+          }
+        }
+      }
+    }, { passive: true });
+
+    // キーボード操作
+    window.addEventListener('keydown', (e) => {
+      if (isCleared) return;
+      const emptyIdx = board.indexOf(0);
+      const er = Math.floor(emptyIdx / N);
+      const ec = emptyIdx % N;
+      let targetIdx = -1;
+
+      if (e.key === 'ArrowUp' || e.key === 'w') {
+        // 下のタイルを上に動かす
+        if (er < N - 1) targetIdx = emptyIdx + N;
+      } else if (e.key === 'ArrowDown' || e.key === 's') {
+        // 上のタイルを下に動かす
+        if (er > 0) targetIdx = emptyIdx - N;
+      } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+        // 右のタイルを左に動かす
+        if (ec < N - 1) targetIdx = emptyIdx + 1;
+      } else if (e.key === 'ArrowRight' || e.key === 'd') {
+        // 左のタイルを右に動かす
+        if (ec > 0) targetIdx = emptyIdx - 1;
+      }
+
+      if (targetIdx !== -1) {
+        e.preventDefault();
+        tryMove(targetIdx);
+      }
+    });
+
+    // モード切替
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const size = parseInt(btn.dataset.size, 10);
+        if (size === N) return;
+        N = size;
+        modeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        initGame();
+      });
+    });
+
+    btnShuffle.addEventListener('click', initGame);
+    btnReplay.addEventListener('click', initGame);
+
+    // 初期開始
+    initGame();
+  </script>
+</body>
+</html>
