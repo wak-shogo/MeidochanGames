@@ -29,35 +29,23 @@
   </div>
 
   <script>
-    // ゲーム一覧をレンダリング
-    async function loadGames() {
-      try {
-        const res = await fetch('/games');
-        const games = await res.json();
-        const grid = document.getElementById('game-grid');
-        grid.innerHTML = '';
-        games.forEach(g => {
-          const card = document.createElement('div');
-          card.className = 'game-card';
-          card.innerHTML = `<h3>${g.name}</h3><a href="/games/${g.filename}" target="_blank">遊ぶ →</a>`;
-          grid.appendChild(card);
-        });
-      } catch (e) {
-        console.error('Failed to load games:', e);
-        // Fallback static games
-        const fallback = [
-          {name: 'Block Breaker', filename: 'block-breaker.html'},
-          {name: 'Pong', filename: 'pong.html'},
-          {name: 'Snake', filename: 'snake.html'}
-        ];
-        const grid = document.getElementById('game-grid');
-        fallback.forEach(g => {
-          const card = document.createElement('div');
-          card.className = 'game-card';
-          card.innerHTML = `<h3>${g.name}</h3><a href="/games/${g.filename}" target="_blank">遊ぶ →</a>`;
-          grid.appendChild(card);
-        });
-      }
+    const games = [
+      {name: '2048 Maid Edition', filename: '2048.html'},
+      {name: 'Flappy Maid', filename: 'flappy-maid.html'},
+      {name: 'Block Breaker', filename: 'block-breaker.html'},
+      {name: 'Pong', filename: 'pong.html'},
+      {name: 'Snake', filename: 'snake.html'}
+    ];
+
+    function loadGames() {
+      const grid = document.getElementById('game-grid');
+      grid.innerHTML = '';
+      games.forEach(g => {
+        const card = document.createElement('div');
+        card.className = 'game-card';
+        card.innerHTML = `<h3>${g.name}</h3><a href="games/${g.filename}" target="_blank">遊ぶ →</a>`;
+        grid.appendChild(card);
+      });
     }
     loadGames();
 
