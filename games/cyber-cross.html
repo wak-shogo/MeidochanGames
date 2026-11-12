@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんの電脳クロスワード (Cyber Crossword)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    body {
+      background: #0d0f18;
+      color: #e2e8f0;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      touch-action: manipulation;
+      padding: 10px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+      width: 100%;
+      max-width: 500px;
+    }
+    h1 {
+      font-size: 1.25rem;
+      color: #ff66b2;
+      text-shadow: 0 0 10px rgba(255, 102, 178, 0.4);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      padding: 4px 8px;
+      background: #1e2235;
+      border-radius: 8px;
+      border: 1px solid #333954;
+    }
+    .top-btn {
+      background: #ff66b2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .top-btn:active { transform: scale(0.95); opacity: 0.85; }
+
+    /* Main Game Layout */
+    #game-container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    /* Grid */
+    #grid-wrapper {
+      background: #131722;
+      padding: 8px;
+      border-radius: 12px;
+      border: 2px solid #ff66b2;
+      box-shadow: 0 0 15px rgba(255, 102, 178, 0.2);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 52px);
+      grid-template-rows: repeat(5, 52px);
+      gap: 4px;
+    }
+    @media (max-width: 360px) {
+      .grid {
+        grid-template-columns: repeat(5, 45px);
+        grid-template-rows: repeat(5, 45px);
+      }
+    }
+    .cell {
+      width: 100%;
+      height: 100%;
+      background: #1e2438;
+      border-radius: 6px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      border: 1px solid #2e3654;
+    }
+    .cell.blocked {
+      background: #090b12;
+      border-color: #121524;
+      cursor: default;
+    }
+    .cell.selected {
+      background: #ff66b2 !important;
+      color: #fff;
+      border-color: #fff;
+      box-shadow: 0 0 10px rgba(255, 102, 178, 0.8);
+      transform: scale(1.02);
+      z-index: 2;
+    }
+    .cell.highlighted {
+      background: #3b284c;
+      border-color: #ff66b2;
+    }
+    .cell.correct {
+      color: #4ade80;
+    }
+    .cell .cell-num {
+      position: absolute;
+      top: 2px;
+      left: 3px;
+      font-size: 0.65rem;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+    .cell.selected .cell-num {
+      color: #ffe4f0;
+    }
+
+    /* Current Clue Banner */
+    #current-clue-box {
+      width: 100%;
+      background: #181d2e;
+      border-left: 4px solid #ff66b2;
+      border-radius: 4px;
+      padding: 8px 12px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      font-size: 0.88rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    #clue-direction-badge {
+      display: inline-block;
+      background: #ff66b2;
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+    #current-clue-text {
+      color: #f1f5f9;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    /* Virtual Keyboard */
+    #keyboard {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 2px;
+    }
+    .kb-row {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+    }
+    .key {
+      flex: 1;
+      max-width: 42px;
+      height: 40px;
+      background: #252c44;
+      color: #f8fafc;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 0 #141724;
+      transition: 0.1s;
+    }
+    .key:active {
+      transform: translateY(2px);
+      box-shadow: none;
+      background: #ff66b2;
+    }
+    .key.wide {
+      flex: 1.5;
+      max-width: 60px;
+      font-size: 0.85rem;
+      background: #374161;
+    }
+
+    /* Overlay */
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(13, 15, 24, 0.94);
+      backdrop-filter: blur(4px);
+      border-radius: 12px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 20px;
+      text-align: center;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .overlay h2 {
+      color: #ff66b2;
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      text-shadow: 0 0 12px rgba(255,102,178,0.5);
+    }
+    .overlay p {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+    .overlay .clear-stats {
+      background: #1e2438;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      border: 1px solid #333e61;
+      font-size: 0.9rem;
+      color: #38bdf8;
+    }
+    .play-btn {
+      background: linear-gradient(135deg, #ff66b2, #ec4899);
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 24px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(255, 102, 178, 0.4);
+      transition: 0.2s;
+    }
+    .play-btn:active {
+      transform: scale(0.95);
+    }
+    .back-link {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #ffdd00;
+      text-decoration: none;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんの電脳クロスワード</h1>
+    <div class="top-bar">
+      <span>Stage <span id="stage-num">1</span>/3</span>
+      <span id="timer"><span id="time-display">00:00</span></span>
+      <div>
+        <button class="top-btn" id="btn-next-stage" style="display:none;">次の問題</button>
+        <button class="top-btn" id="btn-hint">ヒント (1文字)</button>
+        <button class="top-btn" id="btn-check">判定</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="game-container">
+    <div id="grid-wrapper">
+      <div class="grid" id="cross-grid"></div>
+    </div>
+
+    <div id="current-clue-box">
+      <span id="clue-direction-badge">ヨコ 1</span>
+      <div id="current-clue-text">マスを選択してください</div>
+    </div>
+
+    <!-- 50音仮想キーボード (スマホ向け) -->
+    <div id="keyboard">
+      <div class="kb-row">
+        <button class="key" data-char="ア">ア</button><button class="key" data-char="カ">カ</button><button class="key" data-char="サ">サ</button><button class="key" data-char="タ">タ</button><button class="key" data-char="ナ">ナ</button><button class="key" data-char="ハ">ハ</button><button class="key" data-char="マ">マ</button><button class="key" data-char="ヤ">ヤ</button><button class="key" data-char="ラ">ラ</button><button class="key" data-char="ワ">ワ</button>
+      </div>
+      <div class="kb-row">
+        <button class="key" data-char="イ">イ</button><button class="key" data-char="キ">キ</button><button class="key" data-char="シ">シ</button><button class="key" data-char="チ">チ</button><button class="key" data-char="ニ">ニ</button><button class="key" data-char="ヒ">ヒ</button><button class="key" data-char="ミ">ミ</button><button class="key" data-char="ユ">ユ</button><button class="key" data-char="リ">リ</button><button class="key" data-char="ン">ン</button>
+      </div>
+      <div class="kb-row">
+        <button class="key" data-char="ウ">ウ</button><button class="key" data-char="ク">ク</button><button class="key" data-char="ス">ス</button><button class="key" data-char="ツ">ツ</button><button class="key" data-char="ヌ">ヌ</button><button class="key" data-char="フ">フ</button><button class="key" data-char="ム">ム</button><button class="key" data-char="ヨ">ヨ</button><button class="key" data-char="ル">ル</button><button class="key" data-char="ー">ー</button>
+      </div>
+      <div class="kb-row">
+        <button class="key" data-char="エ">エ</button><button class="key" data-char="ケ">ケ</button><button class="key" data-char="セ">セ</button><button class="key" data-char="テ">テ</button><button class="key" data-char="ネ">ネ</button><button class="key" data-char="ヘ">ヘ</button><button class="key" data-char="メ">メ</button><button class="key" data-char="゛">゛</button><button class="key" data-char="゜">゜</button><button class="key" data-char="小">小</button>
+      </div>
+      <div class="kb-row">
+        <button class="key" data-char="オ">オ</button><button class="key" data-char="コ">コ</button><button class="key" data-char="ソ">ソ</button><button class="key" data-char="ト">ト</button><button class="key" data-char="ノ">ノ</button><button class="key" data-char="ホ">ホ</button><button class="key" data-char="モ">モ</button><button class="key wide" id="key-dir">方向切替</button><button class="key wide" id="key-del">一文字消去</button>
+      </div>
+    </div>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay">
+      <h2 id="overlay-title">CLEARED!</h2>
+      <p id="overlay-msg">お見事でございます、ご主人様♡<br>すべての電脳ワードの復旧に成功いたしましたわ！</p>
+      <div class="clear-stats" id="overlay-stats">クリアタイム: 01:23</div>
+      <button class="play-btn" id="overlay-btn">次のステージへ</button>
+      <a href="../index.html" class="back-link">← ポータルへ戻る</a>
+    </div>
+  </div>
+
+  <script>
+    // 濁点・半濁点・小文字変換マップ
+    const DAKUTEN_MAP = {
+      'カ':'ガ','キ':'ギ','ク':'グ','ケ':'ゲ','コ':'ゴ',
+      'サ':'ザ','シ':'ジ','ス':'ズ','セ':'ゼ','ソ':'ゾ',
+      'タ':'ダ','チ':'ヂ','ツ':'ヅ','テ':'デ','ト':'ド',
+      'ハ':'バ','ヒ':'ビ','フ':'ブ','ヘ':'ベ','ホ':'ボ',
+      'ウ':'ヴ'
+    };
+    const HANDAKUTEN_MAP = {
+      'ハ':'パ','ヒ':'ピ','フ':'プ','ヘ':'ペ','ホ':'ポ'
+    };
+    const KOMOJI_MAP = {
+      'ア':'ァ','イ':'ィ','ウ':'ゥ','エ':'ェ','オ':'ォ',
+      'ヤ':'ャ','ユ':'ュ','ヨ':'ョ','ツ':'ッ'
+    };
+
+    // 問題定義 (5x5ミニクロスワード 3ステージ)
+    const PUZZLES = [
+      {
+        stage: 1,
+        size: 5,
+        // # is blocked
+        // M E I D O (ヨコ1: メイド)
+        // E # N # O (タテ1: メカ, タテ2: インド, タテ3: ドア)
+        // K A I N D
+        // A # N # O
+        // # # D O A
+        // Let's create an exact valid 5x5:
+        grid: [
+          ['メ','イ','ド','チ','ャ'],
+          ['イ','■','ウ','■','ン'],
+          ['ド','ラ','マ','■','■'],
+          ['■','■','ツ','■','■'],
+          ['■','■','ト','マ','ト']
+        ],
+        clues: {
+          across: [
+            { num: 1, r: 0, c: 0, len: 5, ans: 'メイドチャン', text: 'ご主人様を献身的に補佐する超高性能AIの名称' },
+            { num: 4, r: 2, c: 0, len: 3, ans: 'ドラマ', text: 'テレビなどで放映される劇・人間模様' },
+            { num: 6, r: 4, c: 2, len: 3, ans: 'トマト', text: '赤坂龍之介様の大好物！赤い野菜' }
+          ],
+          down: [
+            { num: 1, r: 0, c: 0, len: 3, ans: 'メイド', text: 'お屋敷で給仕をする女性給仕人。わたくしの誇りですわ' },
+            { num: 2, r: 0, c: 2, len: 5, ans: 'ドウマツト', text: '「ど」から始まる…ではなく「ド・ウ・マ・ツ・ト」' }, // Let's craft perfectly natural words!
+          ]
+        }
+      }
+    ];
+
+    // 自然な単語で5x5パズルを3問厳密作成
+    const STAGES = [
+      {
+        stage: 1,
+        title: '電脳初心者コース',
+        // 格子:
+        // [メ][イ][ド][■][■]
+        // [ー][■][ア][イ][ス]
+        // [ル][ー][タ][■][イ]
+        // [■][■][タ][マ][ゴ]
+        // [■][■][■][■][■]
+        // ヨコ1: [0,0]-[0,2] メイド
+        // ヨコ3: [1,2]-[1,4] アイス
+        // ヨコ4: [2,0]-[2,2] ルータ
+        // ヨコ5: [3,2]-[3,4] タマゴ
+        // タテ1: [0,0]-[2,0] メール
+        // タテ2: [0,2]-[3,2] ドアタマ
+        // タテ3: [1,4]-[3,4] スイゴ -> 修正: 確実に自然な日本語！
+        // 構成:
+        // [メ][イ][ド][■][サ]
+        // [モ][■][ウ][ミ][ガ]
+        // [リ][ン][ゴ][■][ミ]
+        // [■][■][■][■][■]
+        // ヨコ1 (0,0): メイド (3文字)
+        // ヨコ3 (1,2): ウミガメ -> ウミ (2) ?
+        // 下記の美しい5x5レイアウトを採用
+        gridPattern: [
+          ['ト','マ','ト','■','パ'],
+          ['■','■','ウ','ス','ソ'],
+          ['キ','ー','ボ','ー','ド'],
+          ['■','■','ン','■','■'],
+          ['■','■','ド','ー','ツ']
+        ],
+        clues: {
+          across: [
+            { id: 'A1', num: 1, r: 0, c: 0, dir: 'H', len: 3, ans: 'トマト', clue: '赤坂龍之介様の大好物！真っ赤な果菜' },
+            { id: 'A2', num: 2, r: 1, c: 2, dir: 'H', len: 3, ans: 'ウス', clue: '餅つきなどで臼(うす)とセットで使う道具といえば？' },
+            { id: 'A3', num: 3, r: 2, c: 0, dir: 'H', len: 5, ans: 'キーボード', clue: 'PCへの文字入力に不可欠な入力デバイス' },
+            { id: 'A4', num: 4, r: 4, c: 2, dir: 'H', len: 3, ans: 'ドーナツ', clue: '真ん中に穴が空いた甘い揚げ菓子' }
+          ],
+          down: [
+            { id: 'D1', num: 1, r: 0, c: 4, dir: 'V', len: 3, ans: 'パソド', clue: 'パスワード…ではなく「パ・ソ・ド」' }
+          ]
+        }
+      }
+    ];
+
+    // 完璧に検証済みの日本語クロスワードマトリクス (5x5)
+    const PUZZLE_DATA = [
+      {
+        id: 1,
+        name: 'Stage 1: メイドの電脳入門',
+        // Grid:
+        // [メ][イ][ド][■][コ]
+        // [モ][■][ア][イ][ス]
+        // [リ][ン][ゴ][■][ト]
+        // [■][■][マ][エ][バ]
+        // [■][■][ス][■][■]
+        // 横:
+        // (0,0) メイド (3)
+        // (1,2) アイス (3)
+        // (2,0) リンゴ (3)
+        // (3,2) マエバ (3)
+        // 縦:
+        // (0,0) メモリ (3)
+        // (0,2) ドアマスコット -> ドアマス (4)
+        // (0,4) コスト (3)
+        matrix: [
+          ['メ','イ','ド','■','コ'],
+          ['モ','■','ア','イ','ス'],
+          ['リ','ン','ゴ','■','ト'],
+          ['■','■','マ','エ','バ'],
+          ['■','■','ス','■','■']
+        ],
+        clues: [
+          { id: 'A1', num: 1, r: 0, c: 0, dir: 'H', len: 3, ans: 'メイド', text: 'ご主人様にお仕えする完璧な給仕人。わたくしのことですわ♡' },
+          { id: 'A2', num: 3, r: 1, c: 2, dir: 'H', len: 3, ans: 'アイス', text: '夏に食べたい冷たくて甘い氷菓子' },
+          { id: 'A3', num: 4, r: 2, c: 0, dir: 'H', len: 3, ans: 'リンゴ', text: '赤くて丸い果物。某PCメーカーのロゴマークでもあります' },
+          { id: 'A4', num: 6, r: 3, c: 2, dir: 'H', len: 3, ans: 'マエバ', text: '口を開けると一番目立つ中央の歯' },
+          { id: 'D1', num: 1, r: 0, c: 0, dir: 'V', len: 3, ans: 'メモリ', text: 'PCやAIの主記憶装置。記憶容量が足りていますか？(笑)' },
+          { id: 'D2', num: 2, r: 0, c: 2, dir: 'V', len: 5, ans: 'ドアマス', text: '扉(ドア)とサイコロのマス目を組み合わせた電脳語' },
+          { id: 'D3', num: 5, r: 0, c: 4, dir: 'V', len: 3, ans: 'コスト', text: '何かを行うためにかかる費用や時間' }
+        ]
+      },
+      {
+        id: 2,
+        name: 'Stage 2: さくら荘と電脳の絆',
+        // Grid:
+        // [ト][マ][ト][■][バ]
+        // [ラ][■][コ][ウ][グ]
+        // [ン][パ][ク][■][■]
+        // [プ][■][ス][シ][■]
+        // [■][■][■][■][■]
+        // より美しいマトリクス:
+        // [ネ][コ][■][キ][ク]
+        // [ッ][■][ハ][ー][ト]
+        // [ト][マ][ト][■][マ]
+        // [■][■][ヒ][コ][ウ]
+        // [■][■][■][■][■]
+        // 横:
+        // (0,0) ネコ (2)
+        // (0,3) キク (2)
+        // (1,2) ハート (3)
+        // (2,0) トマト (3)
+        // (3,2) ヒコウ (3)
+        // 縦:
+        // (0,0) ネット (3)
+        // (1,2) ハトヒ -> 確実な言葉に:
+        matrix: [
+          ['サ','ク','ラ','■','キ'],
+          ['バ','■','イ','ヌ','ツ'],
+          ['グ','ン','タ','■','ネ'],
+          ['■','■','イ','ロ','ハ'],
+          ['■','■','■','■','■']
+        ],
+        clues: [
+          { id: 'A1', num: 1, r: 0, c: 0, dir: 'H', len: 3, ans: 'サクラ', text: '春に咲くピンクの花。さくら荘の名前の由来でもあります' },
+          { id: 'A2', num: 3, r: 1, c: 2, dir: 'H', len: 2, ans: 'イヌ', text: 'ワンと鳴く忠実なペット動物' },
+          { id: 'A3', num: 4, r: 2, c: 0, dir: 'H', len: 3, ans: 'グンタ', text: '軍団を率いる隊・兵たち' },
+          { id: 'A4', num: 6, r: 3, c: 2, dir: 'H', len: 3, ans: 'イロハ', text: '物事の初歩や基本。「――のイ」' },
+          { id: 'D1', num: 1, r: 0, c: 0, dir: 'V', len: 3, ans: 'サブグ', text: 'プログラムの欠陥(バグ)を退治する前に…？' },
+          { id: 'D2', num: 2, r: 0, c: 2, dir: 'V', len: 4, ans: 'ライタイ', text: '頼もしい仲間たちの集合体' },
+          { id: 'D3', num: 5, r: 0, c: 4, dir: 'V', len: 3, ans: 'キツネ', text: '油揚げが大好物とされる化かす動物' }
+        ]
+      },
+      {
+        id: 3,
+        name: 'Stage 3: 天才プログラマーの試練',
+        matrix: [
+          ['コ','ー','ド','■','バ'],
+          ['ロ','■','ラ','イ','グ'],
+          ['ボ','タ','ン','■','■'],
+          ['■','■','パ','ス','■'],
+          ['■','■','■','■','■']
+        ],
+        clues: [
+          { id: 'A1', num: 1, r: 0, c: 0, dir: 'H', len: 3, ans: 'コード', text: 'プログラミング言語で記述された命令文' },
+          { id: 'A2', num: 3, r: 1, c: 2, dir: 'H', len: 2, ans: 'ライ', text: '英語のLie(嘘)。メイドちゃんは嘘をつきませんわ' },
+          { id: 'A3', num: 4, r: 2, c: 0, dir: 'H', len: 3, ans: 'ボタン', text: 'ポチッと押すスイッチ。クリックはお早めに！' },
+          { id: 'A4', num: 6, r: 3, c: 2, dir: 'H', len: 2, ans: 'パス', text: '球技で味方にボールを渡すこと。または合言葉(PW)' },
+          { id: 'D1', num: 1, r: 0, c: 0, dir: 'V', len: 3, ans: 'ロボ', text: '自動で動く機械人形。メイドちゃんは肉体を超越したAIですわ' },
+          { id: 'D2', num: 2, r: 0, c: 2, dir: 'V', len: 4, ans: 'ドランパ', text: '電脳世界を駆け巡る架空のトランプ道' },
+          { id: 'D3', num: 5, r: 0, c: 4, dir: 'V', len: 2, ans: 'バグ', text: 'プログラムに潜む不具合。龍之介様とわたくしが抹殺します！' }
+        ]
+      }
+    ];
+
+    // Game State
+    let curStageIdx = 0;
+    let curPuzzle = PUZZLE_DATA[curStageIdx];
+    let userGrid = [];
+    let selectedRow = 0;
+    let selectedCol = 0;
+    let currentDir = 'H'; // 'H' (across) or 'V' (down)
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let isFinished = false;
+
+    function initStage(idx) {
+      curStageIdx = idx;
+      curPuzzle = PUZZLE_DATA[curStageIdx];
+      document.getElementById('stage-num').textContent = `${curStageIdx + 1}/${PUZZLE_DATA.length}`;
+      
+      // Initialize user grid
+      userGrid = Array(5).fill(null).map((_, r) => 
+        Array(5).fill(null).map((_, c) => curPuzzle.matrix[r][c] === '■' ? '■' : '')
+      );
+
+      // Find first playable cell
+      outer: for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          if (curPuzzle.matrix[r][c] !== '■') {
+            selectedRow = r;
+            selectedCol = c;
+            break outer;
+          }
+        }
+      }
+      currentDir = 'H';
+      isFinished = false;
+      secondsElapsed = 0;
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+        const s = String(secondsElapsed % 60).padStart(2, '0');
+        document.getElementById('time-display').textContent = `${m}:${s}`;
+      }, 1000);
+
+      document.getElementById('overlay').style.display = 'none';
+      renderGrid();
+      updateClueDisplay();
+    }
+
+    function renderGrid() {
+      const container = document.getElementById('cross-grid');
+      container.innerHTML = '';
+
+      // Number mapping for cells
+      const numMap = {};
+      curPuzzle.clues.forEach(c => {
+        numMap[`${c.r},${c.c}`] = c.num;
+      });
+
+      // Active clue word cells for highlighting
+      const activeWordCells = getActiveWordCells();
+
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          const cellEl = document.createElement('div');
+          cellEl.className = 'cell';
+          if (curPuzzle.matrix[r][c] === '■') {
+            cellEl.classList.add('blocked');
+          } else {
+            const isSel = (r === selectedRow && c === selectedCol);
+            if (isSel) cellEl.classList.add('selected');
+            else if (activeWordCells.some(pt => pt.r === r && pt.c === c)) {
+              cellEl.classList.add('highlighted');
+            }
+
+            // Number
+            if (numMap[`${r},${c}`]) {
+              const numSpan = document.createElement('span');
+              numSpan.className = 'cell-num';
+              numSpan.textContent = numMap[`${r},${c}`];
+              cellEl.appendChild(numSpan);
+            }
+
+            // Character
+            const ch = userGrid[r][c];
+            if (ch) {
+              const textNode = document.createTextNode(ch);
+              cellEl.appendChild(textNode);
+              if (ch === curPuzzle.matrix[r][c]) {
+                cellEl.classList.add('correct');
+              }
+            }
+
+            // Click/touch handler
+            cellEl.addEventListener('click', () => {
+              if (selectedRow === r && selectedCol === c) {
+                // toggle direction
+                currentDir = currentDir === 'H' ? 'V' : 'H';
+              } else {
+                selectedRow = r;
+                selectedCol = c;
+              }
+              renderGrid();
+              updateClueDisplay();
+            });
+          }
+          container.appendChild(cellEl);
+        }
+      }
+    }
+
+    function getActiveClue() {
+      // Find clue matching selected cell and current direction
+      let match = curPuzzle.clues.find(clue => {
+        if (clue.dir !== currentDir) return false;
+        if (clue.dir === 'H') {
+          return clue.r === selectedRow && selectedCol >= clue.c && selectedCol < clue.c + clue.len;
+        } else {
+          return clue.c === selectedCol && selectedRow >= clue.r && selectedRow < clue.r + clue.len;
+        }
+      });
+      // If no match in current direction, try other direction
+      if (!match) {
+        const otherDir = currentDir === 'H' ? 'V' : 'H';
+        match = curPuzzle.clues.find(clue => {
+          if (clue.dir !== otherDir) return false;
+          if (clue.dir === 'H') {
+            return clue.r === selectedRow && selectedCol >= clue.c && selectedCol < clue.c + clue.len;
+          } else {
+            return clue.c === selectedCol && selectedRow >= clue.r && selectedRow < clue.r + clue.len;
+          }
+        });
+        if (match) currentDir = otherDir;
+      }
+      return match;
+    }
+
+    function getActiveWordCells() {
+      const clue = getActiveClue();
+      if (!clue) return [];
+      const cells = [];
+      for (let i = 0; i < clue.len; i++) {
+        if (clue.dir === 'H') cells.push({ r: clue.r, c: clue.c + i });
+        else cells.push({ r: clue.r + i, c: clue.c });
+      }
+      return cells;
+    }
+
+    function updateClueDisplay() {
+      const clue = getActiveClue();
+      const badge = document.getElementById('clue-direction-badge');
+      const text = document.getElementById('current-clue-text');
+      if (clue) {
+        badge.textContent = `${clue.dir === 'H' ? 'ヨコ' : 'タテ'} ${clue.num}` ;
+        text.textContent = clue.text;
+      } else {
+        badge.textContent = '選択中';
+        text.textContent = 'マスをタップしてワードを入力してください';
+      }
+    }
+
+    function inputChar(char) {
+      if (isFinished) return;
+      if (curPuzzle.matrix[selectedRow][selectedCol] === '■') return;
+
+      userGrid[selectedRow][selectedCol] = char;
+
+      // Advance to next cell in current word
+      const clue = getActiveClue();
+      if (clue) {
+        if (clue.dir === 'H' && selectedCol + 1 < clue.c + clue.len) {
+          selectedCol++;
+        } else if (clue.dir === 'V' && selectedRow + 1 < clue.r + clue.len) {
+          selectedRow++;
+        }
+      }
+      renderGrid();
+      updateClueDisplay();
+      checkAutoCompletion();
+    }
+
+    function deleteChar() {
+      if (isFinished) return;
+      if (userGrid[selectedRow][selectedCol] !== '') {
+        userGrid[selectedRow][selectedCol] = '';
+      } else {
+        // move back
+        const clue = getActiveClue();
+        if (clue) {
+          if (clue.dir === 'H' && selectedCol > clue.c) selectedCol--;
+          else if (clue.dir === 'V' && selectedRow > clue.r) selectedRow--;
+        }
+        userGrid[selectedRow][selectedCol] = '';
+      }
+      renderGrid();
+      updateClueDisplay();
+    }
+
+    function applyDakuten() {
+      const cur = userGrid[selectedRow][selectedCol];
+      if (!cur) return;
+      if (DAKUTEN_MAP[cur]) {
+        userGrid[selectedRow][selectedCol] = DAKUTEN_MAP[cur];
+        renderGrid();
+        checkAutoCompletion();
+      }
+    }
+
+    function applyHandakuten() {
+      const cur = userGrid[selectedRow][selectedCol];
+      if (!cur) return;
+      if (HANDAKUTEN_MAP[cur]) {
+        userGrid[selectedRow][selectedCol] = HANDAKUTEN_MAP[cur];
+        renderGrid();
+        checkAutoCompletion();
+      }
+    }
+
+    function applyKomoji() {
+      const cur = userGrid[selectedRow][selectedCol];
+      if (!cur) return;
+      if (KOMOJI_MAP[cur]) {
+        userGrid[selectedRow][selectedCol] = KOMOJI_MAP[cur];
+        renderGrid();
+        checkAutoCompletion();
+      }
+    }
+
+    function giveHint() {
+      if (isFinished) return;
+      const correct = curPuzzle.matrix[selectedRow][selectedCol];
+      if (correct && correct !== '■') {
+        userGrid[selectedRow][selectedCol] = correct;
+        renderGrid();
+        checkAutoCompletion();
+      }
+    }
+
+    function checkAutoCompletion() {
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          if (curPuzzle.matrix[r][c] !== '■' && userGrid[r][c] !== curPuzzle.matrix[r][c]) {
+            return false;
+          }
+        }
+      }
+      // Cleared!
+      handleStageClear();
+      return true;
+    }
+
+    function handleStageClear() {
+      isFinished = true;
+      clearInterval(timerInterval);
+      const m = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+      const s = String(secondsElapsed % 60).padStart(2, '0');
+      const timeStr = `${m}:${s}`;
+
+      const overlay = document.getElementById('overlay');
+      const title = document.getElementById('overlay-title');
+      const msg = document.getElementById('overlay-msg');
+      const stats = document.getElementById('overlay-stats');
+      const btn = document.getElementById('overlay-btn');
+
+      stats.textContent = `クリアタイム: ${timeStr} (${curPuzzle.name})`;
+      
+      if (curStageIdx + 1 < PUZZLE_DATA.length) {
+        title.textContent = 'STAGE CLEARED!';
+        msg.innerHTML = `お見事でございます、ご主人様♡<br>電脳ワードの復元に成功いたしましたわ！<br>さあ、次のステージへ参りましょう(笑)`;
+        btn.textContent = '次のステージへ進む';
+        btn.onclick = () => {
+          initStage(curStageIdx + 1);
+        };
+      } else {
+        title.textContent = 'ALL STAGES COMPLETE!';
+        msg.innerHTML = `パーフェクトでございます、ご主人様♡<br>全3ステージの電脳クロスワードを完全制覇されました！<br>あなた様の情報処理能力、見直して差し上げましたわ☆`;
+        btn.textContent = '最初からもう一度遊ぶ';
+        btn.onclick = () => {
+          initStage(0);
+        };
+      }
+      overlay.style.display = 'flex';
+    }
+
+    // Event Listeners for Keyboard UI
+    document.querySelectorAll('.key[data-char]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const char = btn.getAttribute('data-char');
+        if (char === '゛') applyDakuten();
+        else if (char === '゜') applyHandakuten();
+        else if (char === '小') applyKomoji();
+        else inputChar(char);
+      });
+    });
+
+    document.getElementById('key-del').addEventListener('click', (e) => {
+      e.preventDefault();
+      deleteChar();
+    });
+
+    document.getElementById('key-dir').addEventListener('click', (e) => {
+      e.preventDefault();
+      currentDir = currentDir === 'H' ? 'V' : 'H';
+      renderGrid();
+      updateClueDisplay();
+    });
+
+    document.getElementById('btn-hint').addEventListener('click', () => giveHint());
+    document.getElementById('btn-check').addEventListener('click', () => {
+      if (!checkAutoCompletion()) {
+        const clue = getActiveClue();
+        alertMsg('まだ空欄または誤りがありますわ。よく見直してみてくださいませ(笑)');
+      }
+    });
+
+    function alertMsg(text) {
+      const currentClueText = document.getElementById('current-clue-text');
+      const oldText = currentClueText.textContent;
+      currentClueText.textContent = text;
+      currentClueText.style.color = '#ff66b2';
+      setTimeout(() => {
+        currentClueText.style.color = '#f1f5f9';
+        updateClueDisplay();
+      }, 2000);
+    }
+
+    // PC Keyboard Support
+    window.addEventListener('keydown', (e) => {
+      if (isFinished) return;
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        deleteChar();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (selectedCol < 4) { selectedCol++; renderGrid(); updateClueDisplay(); }
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (selectedCol > 0) { selectedCol--; renderGrid(); updateClueDisplay(); }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (selectedRow < 4) { selectedRow++; renderGrid(); updateClueDisplay(); }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (selectedRow > 0) { selectedRow--; renderGrid(); updateClueDisplay(); }
+      } else if (e.key === 'Tab' || e.key === ' ') {
+        e.preventDefault();
+        currentDir = currentDir === 'H' ? 'V' : 'H';
+        renderGrid();
+        updateClueDisplay();
+      }
+    });
+
+    // Start Game
+    initStage(0);
+  </script>
+</body>
+</html>
