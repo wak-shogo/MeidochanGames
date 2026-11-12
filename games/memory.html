@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メイドちゃんの記憶メモリ衰弱テスト (Memory Match)</title>
+  <style>
+    :root {
+      --bg-color: #161124;
+      --panel-bg: #261c36;
+      --card-back: linear-gradient(135deg, #7928ca, #ff0080);
+      --card-front: #35264c;
+      --accent-pink: #ff4d94;
+      --accent-cyan: #00f0ff;
+      --text-color: #f7f3fb;
+      --border-color: #583d7a;
+    }
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 20%, #2f1747, #100b1a);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 0.8rem;
+    }
+    h1 {
+      margin: 0 0 0.3rem 0;
+      font-size: 1.8rem;
+      background: linear-gradient(90deg, #ff4d94, #00f0ff, #ffe600);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 25px rgba(255, 77, 148, 0.4);
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #bda3e6;
+      margin: 0;
+    }
+    #game-container {
+      background: var(--panel-bg);
+      padding: 1.2rem;
+      border-radius: 16px;
+      border: 2px solid var(--border-color);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(121, 40, 202, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.9rem;
+      max-width: 95vw;
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-diff {
+      background: #382850;
+      border: 1px solid var(--border-color);
+      color: #eee;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    .btn-diff:hover, .btn-diff.active {
+      background: var(--accent-pink);
+      border-color: #ff85be;
+      color: #12051d;
+      box-shadow: 0 0 10px rgba(255, 77, 148, 0.7);
+    }
+    .status-panel {
+      display: flex;
+      gap: 1.5rem;
+      background: #181124;
+      padding: 0.5rem 1.2rem;
+      border-radius: 8px;
+      border: 1px solid #4a3465;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+    .stat-item span {
+      color: var(--accent-cyan);
+      font-size: 1.15rem;
+    }
+    #grid {
+      display: grid;
+      gap: 10px;
+      perspective: 1000px;
+    }
+    .card {
+      width: 70px;
+      height: 70px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      cursor: pointer;
+    }
+    .card.flipped, .card.matched {
+      transform: rotateY(180deg);
+    }
+    .card.matched {
+      cursor: default;
+    }
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+      font-size: 2rem;
+    }
+    .card-back {
+      background: var(--card-back);
+      border: 2px solid #ff79c6;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+    }
+    .card-front {
+      background: var(--card-front);
+      border: 2px solid var(--accent-cyan);
+      transform: rotateY(180deg);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    }
+    .card.matched .card-front {
+      border-color: #50fa7b;
+      background: #253835;
+      box-shadow: 0 0 15px rgba(80, 250, 123, 0.5);
+      animation: pulse 0.5s ease-out;
+    }
+    @keyframes pulse {
+      0% { transform: rotateY(180deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.15); }
+      100% { transform: rotateY(180deg) scale(1); }
+    }
+    .commentary {
+      min-height: 1.6rem;
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #f1fa8c;
+      text-align: center;
+      text-shadow: 0 0 8px rgba(241, 250, 140, 0.4);
+    }
+    .footer-note {
+      margin-top: 0.8rem;
+      font-size: 0.78rem;
+      color: #8c78a5;
+      text-align: center;
+    }
+    @media (max-width: 500px) {
+      .card { width: 52px; height: 52px; }
+      .card-face { font-size: 1.5rem; }
+      .card-back { font-size: 1rem; }
+      #grid { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんの記憶メモリ衰弱テスト</h1>
+    <p class="subtitle">「わたくしはサーバー、ご主人様は人間！ 記憶容量の限界をお見せください♡」</p>
+  </header>
+
+  <div id="game-container">
+    <div class="controls">
+      <button class="btn-diff active" onclick="setDifficulty('easy')">初級 (4x4 8組)</button>
+      <button class="btn-diff" onclick="setDifficulty('medium')">中級 (6x4 12組)</button>
+      <button class="btn-diff" onclick="setDifficulty('hard')">上級 (6x6 18組)</button>
+      <button class="btn-diff" onclick="initGame()" style="background:#ff4d94;color:#fff;">🔄 再起動</button>
+    </div>
+
+    <div class="status-panel">
+      <div class="stat-item">手番: <span id="moves">0</span></div>
+      <div class="stat-item">一致: <span id="pairs">0</span> / <span id="total-pairs">8</span></div>
+      <div class="stat-item">時間: <span id="time">00:00</span></div>
+    </div>
+
+    <div id="grid"></div>
+    <div class="commentary" id="comment">カードをクリックしてメモリをスキャンしてくださいな☆</div>
+  </div>
+
+  <div class="footer-note">
+    Designed by Meido-chan ―― 頭の中をハッキングして差し上げましょうか？(笑)
+  </div>
+
+  <script>
+    const CARD_ITEMS = [
+      { icon: '🍅', name: 'トマト' },
+      { icon: '🎀', name: 'リボン' },
+      { icon: '💻', name: 'ノートPC' },
+      { icon: '👾', name: 'バグ' },
+      { icon: '☕', name: 'コーヒー' },
+      { icon: '⚡', name: '放電' },
+      { icon: '💖', name: 'ハート' },
+      { icon: '🔐', name: 'セキュリティ' },
+      { icon: '🚀', name: 'ロケット' },
+      { icon: '💾', name: 'FD' },
+      { icon: '⚙️', name: 'ギア' },
+      { icon: '✨', name: 'スター' },
+      { icon: '🎮', name: 'ゲーム機' },
+      { icon: '🤖', name: 'AIコア' },
+      { icon: '🔥', name: 'オーバーヒート' },
+      { icon: '🍕', name: 'ピザ' },
+      { icon: '🎧', name: 'ヘッドホン' },
+      { icon: '🧪', name: '実験薬' }
+    ];
+
+    const config = {
+      easy: { cols: 4, rows: 4, pairs: 8 },
+      medium: { cols: 6, rows: 4, pairs: 12 },
+      hard: { cols: 6, rows: 6, pairs: 18 }
+    };
+
+    let currentDiff = 'easy';
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let moves = 0;
+    let isBusy = false;
+    let timer = null;
+    let seconds = 0;
+    let combo = 0;
+
+    // Audio Synthesizer
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, type, duration, gainVal = 0.08) {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function soundFlip() { playTone(500, 'sine', 0.08, 0.05); }
+    function soundMatch() {
+      playTone(659, 'triangle', 0.12, 0.08);
+      setTimeout(() => playTone(880, 'triangle', 0.18, 0.08), 90);
+    }
+    function soundMiss() {
+      playTone(280, 'sawtooth', 0.15, 0.06);
+      setTimeout(() => playTone(220, 'sawtooth', 0.2, 0.06), 120);
+    }
+    function soundWin() {
+      const notes = [523, 659, 784, 1046, 1318];
+      notes.forEach((f, i) => setTimeout(() => playTone(f, 'triangle', 0.3, 0.1), i * 110));
+    }
+
+    function setDifficulty(diff) {
+      currentDiff = diff;
+      document.querySelectorAll('.btn-diff').forEach(btn => {
+        if (!btn.textContent.includes('再起動')) {
+          btn.classList.toggle('active', btn.textContent.includes(diff === 'easy' ? '初級' : diff === 'medium' ? '中級' : '上級'));
+        }
+      });
+      initGame();
+    }
+
+    function initGame() {
+      const cfg = config[currentDiff];
+      const totalPairs = cfg.pairs;
+      matchedPairs = 0;
+      moves = 0;
+      combo = 0;
+      flippedCards = [];
+      isBusy = false;
+      seconds = 0;
+      clearInterval(timer);
+      timer = null;
+
+      document.getElementById('moves').textContent = '0';
+      document.getElementById('pairs').textContent = '0';
+      document.getElementById('total-pairs').textContent = totalPairs;
+      document.getElementById('time').textContent = '00:00';
+      document.getElementById('comment').textContent = 'カードをクリックしてメモリをスキャンしてくださいな☆';
+
+      const selectedItems = CARD_ITEMS.slice(0, totalPairs);
+      let deck = [...selectedItems, ...selectedItems];
+      deck.sort(() => Math.random() - 0.5);
+
+      const grid = document.getElementById('grid');
+      grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+      grid.innerHTML = '';
+
+      cards = deck.map((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-face card-back">🎀</div>
+          <div class="card-face card-front">${item.icon}</div>
+        `;
+        card.addEventListener('click', () => handleCardClick(index));
+        grid.appendChild(card);
+        return { id: index, item: item, el: card, matched: false };
+      });
+    }
+
+    function startTimer() {
+      if (timer) return;
+      timer = setInterval(() => {
+        seconds++;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        document.getElementById('time').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function handleCardClick(index) {
+      if (isBusy) return;
+      const card = cards[index];
+      if (card.matched || flippedCards.includes(index)) return;
+
+      startTimer();
+      soundFlip();
+      card.el.classList.add('flipped');
+      flippedCards.push(index);
+
+      if (flippedCards.length === 2) {
+        moves++;
+        document.getElementById('moves').textContent = moves;
+        checkMatch();
+      }
+    }
+
+    function checkMatch() {
+      isBusy = true;
+      const [idx1, idx2] = flippedCards;
+      const card1 = cards[idx1];
+      const card2 = cards[idx2];
+
+      if (card1.item.name === card2.item.name) {
+        // Match!
+        setTimeout(() => {
+          soundMatch();
+          card1.matched = true;
+          card2.matched = true;
+          card1.el.classList.add('matched');
+          card2.el.classList.add('matched');
+          matchedPairs++;
+          combo++;
+          document.getElementById('pairs').textContent = matchedPairs;
+
+          const comments = [
+            `見事ですわ！「${card1.item.name}」のアドレスを特定完了♡`,
+            `連続正解ですわ！ご主人様のキャッシュメモリも捨てたものではありませんね(笑)`,
+            `素晴らしい演算速度！メイドちゃんも感服いたしました☆`,
+            `完全一致！頭のハッキングが捗りますわね♡`
+          ];
+          const commentIdx = combo > 1 ? 1 : Math.floor(Math.random() * comments.length);
+          document.getElementById('comment').textContent = comments[commentIdx];
+
+          flippedCards = [];
+          isBusy = false;
+
+          if (matchedPairs === config[currentDiff].pairs) {
+            handleWin();
+          }
+        }, 300);
+      } else {
+        // Miss!
+        combo = 0;
+        setTimeout(() => {
+          soundMiss();
+          card1.el.classList.remove('flipped');
+          card2.el.classList.remove('flipped');
+          flippedCards = [];
+          isBusy = false;
+
+          const missComments = [
+            '［さてはご主人様は、ちょっぴり記憶容量が不足しているお。メイドちゃんより］',
+            'あら？ キャッシュミスが発生したようですよ(笑)',
+            '大丈夫ですわ、人間ですもの、忘れるのは仕様です☆',
+            '迷ってばかりいると相模湾に沈めますよ？(笑)'
+          ];
+          document.getElementById('comment').textContent = missComments[Math.floor(Math.random() * missComments.length)];
+        }, 900);
+      }
+    }
+
+    function handleWin() {
+      clearInterval(timer);
+      soundWin();
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      const timeStr = `${min > 0 ? min + '分' : ''}${sec}秒`;
+      document.getElementById('comment').textContent =
+        `🎉 メモリ完全復旧！${timeStr}・${moves}手でクリアですわ。ご主人様、最高です♡`;
+    }
+
+    initGame();
+  </script>
+</body>
+</html>
