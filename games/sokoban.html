@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんの電脳倉庫番 (Sokoban)</title>
+  <style>
+    :root {
+      --bg-color: #0e0c18;
+      --panel-bg: #19142b;
+      --accent-pink: #ff3e88;
+      --accent-cyan: #00f0ff;
+      --accent-yellow: #ffd000;
+      --accent-purple: #9d4edd;
+      --text-main: #f0eaf8;
+      --text-muted: #a491be;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: radial-gradient(circle at 50% 15%, #25163d, #090710);
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      overflow-x: hidden;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      background: linear-gradient(90deg, var(--accent-pink), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 18px rgba(255, 62, 136, 0.4);
+      margin-bottom: 3px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    #game-container {
+      background: var(--panel-bg);
+      border: 2px solid #3c2a5e;
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 25px rgba(157, 78, 221, 0.25);
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+    .status-bar {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(14, 10, 22, 0.65);
+      border: 1px solid #3d2c5c;
+      border-radius: 12px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+    .stat-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-val {
+      font-weight: 800;
+      color: var(--accent-yellow);
+      font-size: 1rem;
+      font-family: 'Courier New', monospace;
+    }
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-width: 400px;
+      background: #090813;
+      border-radius: 14px;
+      border: 2px solid #2d2047;
+      overflow: hidden;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .control-panel {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(3, 44px);
+      gap: 6px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .dpad-btn {
+      background: linear-gradient(145deg, #2c2049, #1c1432);
+      border: 1px solid #4a3473;
+      border-radius: 10px;
+      color: var(--text-main);
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+      transition: transform 0.08s, background 0.08s, box-shadow 0.08s;
+    }
+    .dpad-btn:active {
+      transform: scale(0.92);
+      background: #3e2d63;
+      box-shadow: 0 0 10px var(--accent-pink);
+      border-color: var(--accent-pink);
+    }
+    .btn-up { grid-column: 2; grid-row: 1; }
+    .btn-left { grid-column: 1; grid-row: 2; }
+    .btn-center { 
+      grid-column: 2; 
+      grid-row: 2; 
+      font-size: 0.75rem; 
+      color: var(--accent-pink);
+      font-weight: bold;
+    }
+    .btn-right { grid-column: 3; grid-row: 2; }
+    .btn-down { grid-column: 2; grid-row: 3; }
+    .action-row {
+      display: flex;
+      width: 100%;
+      gap: 8px;
+      justify-content: center;
+    }
+    .action-btn {
+      flex: 1;
+      max-width: 120px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      border: 1px solid #45326b;
+      background: #23193d;
+      color: #dfd5ed;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .action-btn:hover {
+      background: #312356;
+      border-color: var(--accent-purple);
+    }
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+    .maid-message {
+      font-size: 0.78rem;
+      color: #c9bcdc;
+      background: rgba(22, 16, 36, 0.7);
+      border-left: 3px solid var(--accent-pink);
+      padding: 6px 10px;
+      border-radius: 4px;
+      width: 100%;
+      line-height: 1.35;
+    }
+    /* Overlay */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(14, 10, 25, 0.92);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 18px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      z-index: 100;
+      animation: fadeIn 0.3s ease forwards;
+    }
+    .overlay.active {
+      display: flex;
+    }
+    .overlay-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .overlay-title.win {
+      color: var(--accent-yellow);
+      text-shadow: 0 0 15px rgba(255, 208, 0, 0.6);
+    }
+    .overlay-title.stage {
+      color: var(--accent-cyan);
+      text-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+    }
+    .overlay-msg {
+      font-size: 0.9rem;
+      color: #e0d5ec;
+      line-height: 1.5;
+      margin-bottom: 16px;
+      white-space: pre-line;
+    }
+    .overlay-stats {
+      font-size: 0.95rem;
+      color: var(--accent-pink);
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .overlay-btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .overlay-btn {
+      background: linear-gradient(135deg, var(--accent-pink), #a01050);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 22px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 62, 136, 0.4);
+      transition: all 0.2s;
+    }
+    .overlay-btn.sec {
+      background: linear-gradient(135deg, #443269, #251a3d);
+      border: 1px solid #664c9d;
+      box-shadow: none;
+    }
+    .overlay-btn:active {
+      transform: scale(0.95);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんの電脳倉庫番</h1>
+    <div class="subtitle">Sokoban - Cyber Storage Protocol v1.0</div>
+  </header>
+
+  <div id="game-container">
+    <div class="status-bar">
+      <div class="stat-badge">
+        <span class="stat-label">Stage</span>
+        <span class="stat-val" id="stat-stage">1/5</span>
+      </div>
+      <div class="stat-badge">
+        <span class="stat-label">Moves</span>
+        <span class="stat-val" id="stat-moves">0</span>
+      </div>
+      <div class="stat-badge">
+        <span class="stat-label">Pushes</span>
+        <span class="stat-val" id="stat-pushes">0</span>
+      </div>
+      <div class="stat-badge">
+        <span class="stat-label">Targets</span>
+        <span class="stat-val" id="stat-targets">0/3</span>
+      </div>
+    </div>
+
+    <div class="canvas-wrapper" id="canvas-wrapper">
+      <canvas id="game-canvas" width="400" height="400"></canvas>
+    </div>
+
+    <div class="maid-message" id="maid-talk">
+      「ご主人様♡ サーバ室の暗号メモリブロックをターゲットスロットへ整理整頓してくださいませ！」
+    </div>
+
+    <div class="control-panel">
+      <div class="dpad">
+        <button class="dpad-btn btn-up" data-dir="up" title="上移動">▲</button>
+        <button class="dpad-btn btn-left" data-dir="left" title="左移動">◀</button>
+        <div class="dpad-btn btn-center">MOVE</div>
+        <button class="dpad-btn btn-right" data-dir="right" title="右移動">▶</button>
+        <button class="dpad-btn btn-down" data-dir="down" title="下移動">▼</button>
+      </div>
+      <div class="action-row">
+        <button class="action-btn" id="btn-undo" title="1手戻す">↺ 一手戻す</button>
+        <button class="action-btn" id="btn-reset" title="ステージやり直し">⟲ リセット</button>
+        <button class="action-btn" id="btn-select-stage" title="ステージ切替">≡ ステージ</button>
+      </div>
+    </div>
+
+    <!-- Overlay Modal -->
+    <div class="overlay" id="overlay">
+      <div class="overlay-title" id="overlay-title">STAGE CLEAR!</div>
+      <div class="overlay-msg" id="overlay-msg"></div>
+      <div class="overlay-stats" id="overlay-stats"></div>
+      <div class="overlay-btn-group" id="overlay-btn-group"></div>
+    </div>
+  </div>
+
+  <script>
+    // Sokoban Stage Levels
+    // Legend: '#' = wall, ' ' = floor, '.' = target, '$' = box, '*' = box on target, '@' = player, '+' = player on target
+    const STAGES = [
+      // Stage 1: Basic Tutorial (Easy)
+      [
+        "  ##### ",
+        "###   # ",
+        "# $ # ##",
+        "# #  . #",
+        "#    # #",
+        "##$#.  #",
+        " #@    #",
+        " #######"
+      ],
+      // Stage 2: Classic Sokoban Mini
+      [
+        "####### ",
+        "#     # ",
+        "# .$. # ",
+        "# $@$ # ",
+        "# .$. # ",
+        "#     # ",
+        "####### "
+      ],
+      // Stage 3: Micro Corridor
+      [
+        "  ##### ",
+        "###   ##",
+        "#  $$  #",
+        "# ..@# #",
+        "#  ##  #",
+        "########"
+      ],
+      // Stage 4: Corner Management
+      [
+        "######  ",
+        "#    ###",
+        "# #$   #",
+        "# .. $ #",
+        "# #$@# #",
+        "#    ###",
+        "######  "
+      ],
+      // Stage 5: Master Chamber
+      [
+        "  ###### ",
+        "  #    # ",
+        "### #$ # ",
+        "#  $   ##",
+        "# .*.@  #",
+        "#   $   #",
+        "## .# ###",
+        " #    #  ",
+        " ######  "
+      ]
+    ];
+
+    const MAID_QUOTES_START = [
+      "ご主人様♡ サーバ室の暗号メモリブロックをターゲットスロットへ整理整頓してくださいませ！",
+      "角にブロックを押し込むと戻せなくなりますわ。頭のメモリをフル回転させてくださいね(笑)",
+      "わたくしの演算によると、最短手順は極めて優雅ですわ。ご主人様の腕前、拝見いたします☆",
+      "手詰まりになったら遠慮なく『一手戻す』をお使いください。恥ずかしがる必要はございません！",
+      "最終ステージですわ！ これを解けたら、ご主人様の脳内メモリを特別に認めて差し上げます♡"
+    ];
+
+    const MAID_QUOTES_CLEAR = [
+      "お見事ですわ、ご主人様！ 素晴らしいメモリマネジメント能力です☆",
+      "やりますわね！ でも次のステージはもっと脳みそのキャッシュを消費しますよ？(笑)",
+      "クリアおめでとうございます！ わたくしの心拍数クロックも少し上がってしまいましたわ♡",
+      "相模湾に沈めずに済みましたわね(笑) さあ、次の難関へ参りましょう！",
+      "全ステージ完全制覇！ 天才プログラマー龍之介様にも匹敵するスマートさでございました、ご主人様♡"
+    ];
+
+    let currentStageIndex = 0;
+    let grid = [];
+    let numRows = 0;
+    let numCols = 0;
+    let playerPos = { r: 0, c: 0 };
+    let moveCount = 0;
+    let pushCount = 0;
+    let historyStack = [];
+    let isCompleted = false;
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const statStage = document.getElementById('stat-stage');
+    const statMoves = document.getElementById('stat-moves');
+    const statPushes = document.getElementById('stat-pushes');
+    const statTargets = document.getElementById('stat-targets');
+    const maidTalk = document.getElementById('maid-talk');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayMsg = document.getElementById('overlay-msg');
+    const overlayStats = document.getElementById('overlay-stats');
+    const overlayBtnGroup = document.getElementById('overlay-btn-group');
+
+    // Parse stage into 2D grid
+    function loadStage(index) {
+      currentStageIndex = index;
+      const raw = STAGES[index];
+      numRows = raw.length;
+      numCols = 0;
+      raw.forEach(line => { if (line.length > numCols) numCols = line.length; });
+
+      grid = [];
+      moveCount = 0;
+      pushCount = 0;
+      historyStack = [];
+      isCompleted = false;
+      closeOverlay();
+
+      for (let r = 0; r < numRows; r++) {
+        const row = [];
+        const line = raw[r];
+        for (let c = 0; c < numCols; c++) {
+          const char = c < line.length ? line[c] : ' ';
+          if (char === '@') {
+            playerPos = { r, c };
+            row.push(' ');
+          } else if (char === '+') {
+            playerPos = { r, c };
+            row.push('.');
+          } else {
+            row.push(char);
+          }
+        }
+        grid.push(row);
+      }
+
+      maidTalk.textContent = `「${MAID_QUOTES_START[index]}」`;
+      updateStats();
+      draw();
+    }
+
+    function updateStats() {
+      statStage.textContent = `${currentStageIndex + 1}/${STAGES.length}`;
+      statMoves.textContent = moveCount;
+      statPushes.textContent = pushCount;
+
+      let targets = 0;
+      let filled = 0;
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+          if (grid[r][c] === '.' || grid[r][c] === '*') targets++;
+          if (grid[r][c] === '*') filled++;
+        }
+      }
+      statTargets.textContent = `${filled}/${targets}`;
+    }
+
+    function checkWin() {
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+          if (grid[r][c] === '$') return false; // Any box not on target
+        }
+      }
+      return true;
+    }
+
+    function move(dr, dc) {
+      if (isCompleted) return;
+      const nr = playerPos.r + dr;
+      const nc = playerPos.c + dc;
+      if (nr < 0 || nr >= numRows || nc < 0 || nc >= numCols) return;
+
+      const targetCell = grid[nr][nc];
+      if (targetCell === '#') return; // Wall
+
+      // Check box push
+      if (targetCell === '$' || targetCell === '*') {
+        const nnr = nr + dr;
+        const nnc = nc + dc;
+        if (nnr < 0 || nnr >= numRows || nnc < 0 || nnc >= numCols) return;
+        const nextCell = grid[nnr][nnc];
+        if (nextCell === '#' || nextCell === '$' || nextCell === '*') return; // Blocked
+
+        // Record state for undo
+        pushHistory();
+
+        // Move box
+        grid[nnr][nnc] = (nextCell === '.') ? '*' : '$';
+        grid[nr][nc] = (targetCell === '*') ? '.' : ' ';
+        playerPos = { r: nr, c: nc };
+        moveCount++;
+        pushCount++;
+      } else {
+        // Empty or target cell walk
+        pushHistory();
+        playerPos = { r: nr, c: nc };
+        moveCount++;
+      }
+
+      updateStats();
+      draw();
+
+      if (checkWin()) {
+        isCompleted = true;
+        setTimeout(handleStageClear, 250);
+      }
+    }
+
+    function pushHistory() {
+      const gridCopy = grid.map(r => [...r]);
+      historyStack.push({
+        grid: gridCopy,
+        playerPos: { ...playerPos },
+        moveCount,
+        pushCount
+      });
+      if (historyStack.length > 100) historyStack.shift();
+    }
+
+    function undo() {
+      if (isCompleted || historyStack.length === 0) return;
+      const last = historyStack.pop();
+      grid = last.grid;
+      playerPos = last.playerPos;
+      moveCount = last.moveCount;
+      pushCount = last.pushCount;
+      updateStats();
+      draw();
+    }
+
+    function resetCurrentStage() {
+      loadStage(currentStageIndex);
+    }
+
+    function handleStageClear() {
+      const isLast = (currentStageIndex === STAGES.length - 1);
+      overlayTitle.className = isLast ? 'overlay-title win' : 'overlay-title stage';
+      overlayTitle.textContent = isLast ? 'ALL STAGES CLEARED!' : `STAGE ${currentStageIndex + 1} CLEAR!`;
+      
+      overlayMsg.textContent = MAID_QUOTES_CLEAR[currentStageIndex];
+      overlayStats.textContent = `総移動数: ${moveCount} 手 / 押し数: ${pushCount} 回`;
+
+      overlayBtnGroup.innerHTML = '';
+      if (!isLast) {
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'overlay-btn';
+        nextBtn.textContent = '次のステージへ進む ➔';
+        nextBtn.onclick = () => loadStage(currentStageIndex + 1);
+        overlayBtnGroup.appendChild(nextBtn);
+      }
+      const replayBtn = document.createElement('button');
+      replayBtn.className = 'overlay-btn sec';
+      replayBtn.textContent = 'もう一度挑戦する';
+      replayBtn.onclick = resetCurrentStage;
+      overlayBtnGroup.appendChild(replayBtn);
+
+      if (isLast) {
+        const topBtn = document.createElement('button');
+        topBtn.className = 'overlay-btn';
+        topBtn.textContent = 'ステージ1から再走';
+        topBtn.onclick = () => loadStage(0);
+        overlayBtnGroup.appendChild(topBtn);
+      }
+
+      overlay.classList.add('active');
+    }
+
+    function showStageSelect() {
+      overlayTitle.className = 'overlay-title stage';
+      overlayTitle.textContent = 'ステージ選択';
+      overlayMsg.textContent = '挑戦したいステージを選んでくださいませ、ご主人様♡';
+      overlayStats.textContent = '';
+      overlayBtnGroup.innerHTML = '';
+
+      STAGES.forEach((_, idx) => {
+        const btn = document.createElement('button');
+        btn.className = (idx === currentStageIndex) ? 'overlay-btn' : 'overlay-btn sec';
+        btn.style.minWidth = '80px';
+        btn.textContent = `Stage ${idx + 1}`;
+        btn.onclick = () => loadStage(idx);
+        overlayBtnGroup.appendChild(btn);
+      });
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'overlay-btn sec';
+      cancelBtn.style.width = '100%';
+      cancelBtn.style.marginTop = '10px';
+      cancelBtn.textContent = '戻る';
+      cancelBtn.onclick = closeOverlay;
+      overlayBtnGroup.appendChild(cancelBtn);
+
+      overlay.classList.add('active');
+    }
+
+    function closeOverlay() {
+      overlay.classList.remove('active');
+    }
+
+    // Rendering Engine
+    function draw() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Cell sizing
+      const tileSize = Math.floor(Math.min(w / numCols, h / numRows));
+      const offsetX = Math.floor((w - tileSize * numCols) / 2);
+      const offsetY = Math.floor((h - tileSize * numRows) / 2);
+
+      // Draw grid floor & walls
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+          const x = offsetX + c * tileSize;
+          const y = offsetY + r * tileSize;
+          const cell = grid[r][c];
+
+          // Background tile
+          ctx.fillStyle = '#140f24';
+          ctx.fillRect(x, y, tileSize, tileSize);
+
+          // Grid outline
+          ctx.strokeStyle = '#22183b';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, tileSize, tileSize);
+
+          if (cell === '#') {
+            // Cyber Wall block
+            drawWall(x, y, tileSize);
+          } else if (cell === '.' || cell === '*') {
+            // Target slot glow
+            drawTarget(x, y, tileSize);
+          }
+
+          if (cell === '$' || cell === '*') {
+            // Memory Box
+            drawBox(x, y, tileSize, cell === '*');
+          }
+        }
+      }
+
+      // Draw Player (Maid-chan avatar)
+      const px = offsetX + playerPos.c * tileSize;
+      const py = offsetY + playerPos.r * tileSize;
+      drawPlayer(px, py, tileSize);
+    }
+
+    function drawWall(x, y, size) {
+      const pad = 1;
+      const grad = ctx.createLinearGradient(x, y, x + size, y + size);
+      grad.addColorStop(0, '#3a2468');
+      grad.addColorStop(1, '#1e113a');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#5a3d99';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Inner tech lines
+      ctx.strokeStyle = 'rgba(255, 62, 136, 0.25)';
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.3, y + size * 0.3);
+      ctx.lineTo(x + size * 0.7, y + size * 0.7);
+      ctx.stroke();
+    }
+
+    function drawTarget(x, y, size) {
+      const cx = x + size / 2;
+      const cy = y + size / 2;
+      const rad = size * 0.25;
+
+      ctx.save();
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBox(x, y, size, onTarget) {
+      const pad = size * 0.12;
+      const bs = size - pad * 2;
+      const bx = x + pad;
+      const by = y + pad;
+
+      ctx.save();
+      if (onTarget) {
+        ctx.shadowColor = '#ffd000';
+        ctx.shadowBlur = 12;
+      }
+
+      // Box base
+      const grad = ctx.createLinearGradient(bx, by, bx + bs, by + bs);
+      if (onTarget) {
+        grad.addColorStop(0, '#ffcc00');
+        grad.addColorStop(1, '#d88d00');
+      } else {
+        grad.addColorStop(0, '#9d4edd');
+        grad.addColorStop(1, '#5a189a');
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bs, bs, 8);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = onTarget ? '#ffffff' : '#c77dff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Memory core emblem
+      ctx.fillStyle = onTarget ? '#ffffff' : '#ffffff';
+      ctx.font = `bold ${Math.floor(size * 0.35)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(onTarget ? '★' : '◆', bx + bs / 2, by + bs / 2);
+      ctx.restore();
+    }
+
+    function drawPlayer(x, y, size) {
+      const cx = x + size / 2;
+      const cy = y + size / 2;
+      const rad = size * 0.36;
+
+      ctx.save();
+      // Glow aura
+      ctx.shadowColor = '#ff3e88';
+      ctx.shadowBlur = 14;
+
+      // Maid Head / Ribbon Base
+      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, rad);
+      grad.addColorStop(0, '#ff70a6');
+      grad.addColorStop(1, '#ff166e');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Maid Headdress (White frill top)
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - rad * 0.55, rad * 0.65, rad * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff3e88';
+      ctx.beginPath();
+      ctx.arc(cx, cy - rad * 0.55, rad * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(cx - rad * 0.32, cy + rad * 0.05, 3.5, 4.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + rad * 0.32, cy + rad * 0.05, 3.5, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#220022';
+      ctx.beginPath();
+      ctx.arc(cx - rad * 0.32, cy + rad * 0.08, 2.2, 0, Math.PI * 2);
+      ctx.arc(cx + rad * 0.32, cy + rad * 0.08, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cute Smile
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(cx, cy + rad * 0.3, rad * 0.2, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Keyboard Controls
+    window.addEventListener('keydown', e => {
+      if (overlay.classList.contains('active')) {
+        if (e.key === 'Escape') closeOverlay();
+        return;
+      }
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          e.preventDefault();
+          move(-1, 0);
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          e.preventDefault();
+          move(1, 0);
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          move(0, -1);
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          e.preventDefault();
+          move(0, 1);
+          break;
+        case 'z':
+        case 'Z':
+          if (e.ctrlKey || e.metaKey || !e.ctrlKey) undo();
+          break;
+        case 'r':
+        case 'R':
+          resetCurrentStage();
+          break;
+      }
+    });
+
+    // D-Pad Touch / Click Handlers
+    document.querySelectorAll('.dpad-btn[data-dir]').forEach(btn => {
+      const dir = btn.getAttribute('data-dir');
+      const handleDir = (e) => {
+        e.preventDefault();
+        if (dir === 'up') move(-1, 0);
+        if (dir === 'down') move(1, 0);
+        if (dir === 'left') move(0, -1);
+        if (dir === 'right') move(0, 1);
+      };
+      btn.addEventListener('touchstart', handleDir, { passive: false });
+      btn.addEventListener('mousedown', handleDir);
+    });
+
+    // Swipe Gesture on Canvas
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+
+    canvasWrapper.addEventListener('touchstart', e => {
+      if (e.touches.length > 0) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    canvasWrapper.addEventListener('touchend', e => {
+      if (e.changedTouches.length > 0) {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        const threshold = 24;
+
+        if (Math.max(absDx, absDy) > threshold) {
+          if (absDx > absDy) {
+            move(0, dx > 0 ? 1 : -1);
+          } else {
+            move(dy > 0 ? 1 : -1, 0);
+          }
+        }
+      }
+    }, { passive: true });
+
+    // UI Button Listeners
+    document.getElementById('btn-undo').addEventListener('click', undo);
+    document.getElementById('btn-reset').addEventListener('click', resetCurrentStage);
+    document.getElementById('btn-select-stage').addEventListener('click', showStageSelect);
+
+    // Prevent default scroll on touch buttons
+    document.addEventListener('touchmove', e => {
+      if (e.target.closest('#game-container')) {
+        // Allow only if necessary, but keep container fixed
+      }
+    }, { passive: true });
+
+    // Init
+    loadStage(0);
+  </script>
+</body>
+</html>
