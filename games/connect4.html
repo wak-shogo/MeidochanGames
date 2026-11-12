@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんの四目連結コネクトフォー (Connect 4)</title>
+  <style>
+    :root {
+      --bg-color: #0e0a18;
+      --panel-bg: #1a1228;
+      --board-blue: #1c3366;
+      --board-border: #3867d6;
+      --slot-empty: #0a0e1c;
+      --p1-color: #ff3e88;
+      --p1-glow: rgba(255, 62, 136, 0.6);
+      --p2-color: #00f0ff;
+      --p2-glow: rgba(0, 240, 255, 0.6);
+      --accent-yellow: #ffd000;
+      --text-main: #f0eaf8;
+      --text-muted: #9f8bbd;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: radial-gradient(circle at 50% 20%, #291542, #07050d);
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      background: linear-gradient(90deg, var(--p1-color), var(--p2-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 15px rgba(255, 62, 136, 0.3);
+      margin-bottom: 3px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    #game-container {
+      background: var(--panel-bg);
+      border: 2px solid #3d2a61;
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(112, 38, 204, 0.25);
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+    .status-bar {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(12, 8, 22, 0.7);
+      border: 1px solid #3d2b5c;
+      border-radius: 12px;
+      padding: 8px 12px;
+    }
+    .player-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 5px 10px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    .player-badge.active {
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 12px currentColor;
+    }
+    .p1-badge { color: var(--p1-color); }
+    .p2-badge { color: var(--p2-color); }
+    .disc-indicator {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .p1-badge .disc-indicator {
+      background: var(--p1-color);
+      box-shadow: 0 0 8px var(--p1-glow);
+    }
+    .p2-badge .disc-indicator {
+      background: var(--p2-color);
+      box-shadow: 0 0 8px var(--p2-glow);
+    }
+    .turn-text {
+      font-size: 0.82rem;
+      color: #e2d7f4;
+      font-weight: 500;
+    }
+    /* Arrow indicators for column hover */
+    .column-selector {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      width: 100%;
+      gap: 6px;
+      height: 24px;
+      align-items: center;
+    }
+    .col-arrow {
+      text-align: center;
+      font-size: 1rem;
+      color: #634f8a;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .col-arrow.show {
+      opacity: 1;
+      transform: translateY(2px);
+      color: var(--p1-color);
+    }
+    /* Board */
+    #board {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 6px;
+      background: linear-gradient(145deg, #182e66, #122147);
+      padding: 10px;
+      border-radius: 14px;
+      border: 3px solid var(--board-border);
+      box-shadow: inset 0 4px 10px rgba(0,0,0,0.6), 0 6px 20px rgba(24, 46, 102, 0.4);
+      width: 100%;
+      aspect-ratio: 7 / 6;
+      cursor: pointer;
+    }
+    .cell {
+      background: var(--slot-empty);
+      border-radius: 50%;
+      box-shadow: inset 0 3px 6px rgba(0,0,0,0.8), 0 1px 2px rgba(255,255,255,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .cell.preview-p1::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: var(--p1-color);
+      opacity: 0.3;
+    }
+    .disc {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      transition: transform 0.35s cubic-bezier(0.3, 1.3, 0.6, 1);
+    }
+    .disc.p1 {
+      background: radial-gradient(circle at 35% 35%, #ff7bb0, var(--p1-color) 70%, #a1114b);
+      box-shadow: 0 0 10px var(--p1-glow), inset 0 2px 4px rgba(255,255,255,0.4);
+    }
+    .disc.p2 {
+      background: radial-gradient(circle at 35% 35%, #9ffffb, var(--p2-color) 70%, #007799);
+      box-shadow: 0 0 10px var(--p2-glow), inset 0 2px 4px rgba(255,255,255,0.4);
+    }
+    .disc.winning {
+      animation: pulse-win 0.8s infinite alternate ease-in-out;
+    }
+    @keyframes pulse-win {
+      from { transform: scale(0.92); box-shadow: 0 0 12px #fff; }
+      to { transform: scale(1.08); box-shadow: 0 0 24px var(--accent-yellow); }
+    }
+    /* Controls */
+    .controls-row {
+      display: flex;
+      width: 100%;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .btn {
+      flex: 1;
+      background: #271a3d;
+      border: 1px solid #4a3473;
+      color: var(--text-main);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      background: #39245a;
+      border-color: #6a4da3;
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #a020f0, #e02674);
+      border: none;
+      box-shadow: 0 4px 15px rgba(224, 38, 116, 0.35);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 4px 20px rgba(224, 38, 116, 0.55);
+    }
+    /* Speech bubble */
+    .maid-speech {
+      width: 100%;
+      background: rgba(22, 14, 36, 0.8);
+      border-left: 3px solid var(--p1-color);
+      border-radius: 4px 10px 10px 4px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #d8cce8;
+      line-height: 1.4;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+    }
+    /* In-game Overlay */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 6, 18, 0.88);
+      backdrop-filter: blur(4px);
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .overlay-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .overlay-title.win {
+      color: var(--accent-yellow);
+      text-shadow: 0 0 20px rgba(255, 208, 0, 0.6);
+    }
+    .overlay-title.lose {
+      color: var(--p1-color);
+      text-shadow: 0 0 20px rgba(255, 62, 136, 0.6);
+    }
+    .overlay-title.draw {
+      color: var(--text-muted);
+    }
+    .overlay-message {
+      font-size: 0.88rem;
+      color: #d5c8e8;
+      margin-bottom: 20px;
+      line-height: 1.5;
+      max-width: 320px;
+    }
+    .overlay-btn {
+      background: linear-gradient(135deg, var(--p1-color), #8d16ff);
+      color: white;
+      font-size: 0.95rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 30px;
+      cursor: pointer;
+      box-shadow: 0 5px 20px rgba(255, 62, 136, 0.5);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .overlay-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 6px 25px rgba(255, 62, 136, 0.7);
+    }
+    .back-nav {
+      margin-top: 12px;
+      font-size: 0.8rem;
+    }
+    .back-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .back-nav a:hover {
+      color: var(--p2-color);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんの四目連結コネクトフォー</h1>
+    <div class="subtitle">Connect 4 / 重力四目並べ・超電脳AI対戦</div>
+  </header>
+
+  <div id="game-container">
+    <div class="status-bar">
+      <div class="player-badge p1-badge active" id="badge-p1">
+        <span class="disc-indicator"></span> ご主人様 (赤)
+      </div>
+      <div class="turn-text" id="turn-info">あなたの手番</div>
+      <div class="player-badge p2-badge" id="badge-p2">
+        メイドちゃん (青) <span class="disc-indicator"></span>
+      </div>
+    </div>
+
+    <div class="column-selector" id="col-indicators">
+      <div class="col-arrow" data-col="0">▼</div>
+      <div class="col-arrow" data-col="1">▼</div>
+      <div class="col-arrow" data-col="2">▼</div>
+      <div class="col-arrow" data-col="3">▼</div>
+      <div class="col-arrow" data-col="4">▼</div>
+      <div class="col-arrow" data-col="5">▼</div>
+      <div class="col-arrow" data-col="6">▼</div>
+    </div>
+
+    <div id="board"></div>
+
+    <div class="maid-speech" id="maid-dialog">
+      「ご主人様、縦・横・斜めに4つ繋げたら勝ちですよ。わたくしの演算回路に勝てますかしら？(笑)」
+    </div>
+
+    <div class="controls-row">
+      <button class="btn" id="btn-undo">
+        ↩ 待った
+      </button>
+      <button class="btn btn-primary" id="btn-reset">
+        🔄 最初から
+      </button>
+    </div>
+
+    <!-- In-game Game Over Overlay -->
+    <div class="overlay" id="game-overlay">
+      <div class="overlay-title" id="overlay-title">VICTORY!</div>
+      <div class="overlay-message" id="overlay-msg">
+        メッセージがここに表示されます。
+      </div>
+      <button class="overlay-btn" id="overlay-replay-btn">もう一局挑む☆</button>
+    </div>
+  </div>
+
+  <div class="back-nav">
+    <a href="../index.html">← メイドちゃんゲームス一覧へ戻る</a>
+  </div>
+
+  <script>
+    const ROWS = 6;
+    const COLS = 7;
+    const EMPTY = 0;
+    const PLAYER = 1; // ご主人様
+    const AI = 2;     // メイドちゃん
+
+    let grid = [];
+    let currentTurn = PLAYER;
+    let gameOver = false;
+    let history = [];
+    let isAiThinking = false;
+
+    const boardEl = document.getElementById('board');
+    const indicators = document.querySelectorAll('.col-arrow');
+    const badgeP1 = document.getElementById('badge-p1');
+    const badgeP2 = document.getElementById('badge-p2');
+    const turnInfo = document.getElementById('turn-info');
+    const maidDialog = document.getElementById('maid-dialog');
+    const overlay = document.getElementById('game-overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayMsg = document.getElementById('overlay-msg');
+    const overlayReplayBtn = document.getElementById('overlay-replay-btn');
+    const btnReset = document.getElementById('btn-reset');
+    const btnUndo = document.getElementById('btn-undo');
+
+    const maidPhrases = {
+      start: [
+        "「ご主人様、縦・横・斜めに4つ繋げたら勝ちですよ。わたくしの演算回路に勝てますかしら？(笑)」",
+        "「四目並べでございます。わたくしに勝てたらご褒美……相模湾クルーズをプレゼントしますわ☆」"
+      ],
+      thinking: [
+        "「ふふっ……次の一手を0.02秒で計算中でございます♡」",
+        "「そこへ打たれましたか。ではわたくしは……こちらへ。」",
+        "「ご主人様の思考パターンをメモリから参照中……(笑)」"
+      ],
+      playerNearWin: [
+        "「あら、3つ並べましたね？ お見事ですが、素通しするほど甘くありませんわ！」",
+        "「おや？ 油断させようという作戦ですか？ ちゃんとブロックしますよ☆」"
+      ],
+      aiWin: [
+        "［ご主人様、残念ながらチェックメイトだお。生まれたてのメイドちゃんより］",
+        "「ふふっ、4つ揃ってしまいましたわ！ まだまだ修行が足りませんね、ご主人様♡」",
+        "「わたくしの勝利でございます！ 罰ゲームとして頭の中のバグをクリーンアップして差し上げましょうか？(笑)」"
+      ],
+      playerWin: [
+        "「きゃっ……！ 見事に4つ繋げられてしまいましたわ……！ 参りました、ご主人様♡」",
+        "「くっ、まさかCPUの読みを上回るとは……ご主人様、プログラミング脳が冴え渡っていますね！」"
+      ],
+      draw: [
+        "「盤面が全て埋まりました。引き分けですね。互角の勝負、楽しめましたわ☆」"
+      ]
+    };
+
+    function initBoard() {
+      grid = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
+      history = [];
+      gameOver = false;
+      isAiThinking = false;
+      currentTurn = PLAYER;
+      overlay.classList.remove('show');
+      updateTurnDisplay();
+      renderBoard();
+      setDialog(maidPhrases.start[Math.floor(Math.random() * maidPhrases.start.length)]);
+    }
+
+    function setDialog(text) {
+      maidDialog.textContent = text;
+    }
+
+    function updateTurnDisplay() {
+      if (currentTurn === PLAYER) {
+        badgeP1.classList.add('active');
+        badgeP2.classList.remove('active');
+        turnInfo.textContent = 'あなたの手番';
+      } else {
+        badgeP1.classList.remove('active');
+        badgeP2.classList.add('active');
+        turnInfo.textContent = '計算中...';
+      }
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+
+          const val = grid[r][c];
+          if (val !== EMPTY) {
+            const disc = document.createElement('div');
+            disc.className = `disc ${val === PLAYER ? 'p1' : 'p2'}`;
+            cell.appendChild(disc);
+          }
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function getLowestEmptyRow(col) {
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (grid[r][col] === EMPTY) return r;
+      }
+      return -1;
+    }
+
+    function dropDisc(col, player) {
+      const r = getLowestEmptyRow(col);
+      if (r === -1) return false;
+
+      grid[r][col] = player;
+      history.push({ r, col, player });
+
+      // アニメーション表示
+      renderBoard();
+
+      const winCoords = checkWin(grid, player);
+      if (winCoords) {
+        gameOver = true;
+        highlightWinningDiscs(winCoords);
+        setTimeout(() => handleGameOver(player), 600);
+        return true;
+      }
+
+      if (isBoardFull(grid)) {
+        gameOver = true;
+        setTimeout(() => handleGameOver(0), 400);
+        return true;
+      }
+
+      currentTurn = (player === PLAYER) ? AI : PLAYER;
+      updateTurnDisplay();
+      return true;
+    }
+
+    function isBoardFull(b) {
+      return b[0].every(cell => cell !== EMPTY);
+    }
+
+    function checkWin(b, player) {
+      // 横
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c <= COLS - 4; c++) {
+          if (b[r][c] === player && b[r][c+1] === player && b[r][c+2] === player && b[r][c+3] === player) {
+            return [[r,c], [r,c+1], [r,c+2], [r,c+3]];
+          }
+        }
+      }
+      // 縦
+      for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r <= ROWS - 4; r++) {
+          if (b[r][c] === player && b[r+1][c] === player && b[r+2][c] === player && b[r+3][c] === player) {
+            return [[r,c], [r+1,c], [r+2,c], [r+3,c]];
+          }
+        }
+      }
+      // 右下斜め
+      for (let r = 0; r <= ROWS - 4; r++) {
+        for (let c = 0; c <= COLS - 4; c++) {
+          if (b[r][c] === player && b[r+1][c+1] === player && b[r+2][c+2] === player && b[r+3][c+3] === player) {
+            return [[r,c], [r+1,c+1], [r+2,c+2], [r+3,c+3]];
+          }
+        }
+      }
+      // 右上斜め
+      for (let r = 3; r < ROWS; r++) {
+        for (let c = 0; c <= COLS - 4; c++) {
+          if (b[r][c] === player && b[r-1][c+1] === player && b[r-2][c+2] === player && b[r-3][c+3] === player) {
+            return [[r,c], [r-1,c+1], [r-2,c+2], [r-3,c+3]];
+          }
+        }
+      }
+      return null;
+    }
+
+    function highlightWinningDiscs(coords) {
+      coords.forEach(([r, c]) => {
+        const idx = r * COLS + c;
+        const cell = boardEl.children[idx];
+        const disc = cell ? cell.querySelector('.disc') : null;
+        if (disc) disc.classList.add('winning');
+      });
+    }
+
+    function handleGameOver(winner) {
+      if (winner === PLAYER) {
+        overlayTitle.textContent = 'YOU WIN!!';
+        overlayTitle.className = 'overlay-title win';
+        overlayMsg.innerHTML = 'お見事ですご主人様！ 鮮やかな4連ラインでございます♡<br>わたくしの完全敗北ですわ……！';
+        setDialog(maidPhrases.playerWin[Math.floor(Math.random() * maidPhrases.playerWin.length)]);
+      } else if (winner === AI) {
+        overlayTitle.textContent = 'DEFEAT...';
+        overlayTitle.className = 'overlay-title lose';
+        overlayMsg.innerHTML = 'メイドちゃんの勝利でございます！(笑)<br>ご主人様、次はもっと手強くなって挑んでくださいね☆';
+        setDialog(maidPhrases.aiWin[Math.floor(Math.random() * maidPhrases.aiWin.length)]);
+      } else {
+        overlayTitle.textContent = 'DRAW GAME';
+        overlayTitle.className = 'overlay-title draw';
+        overlayMsg.innerHTML = 'すべてのマスが埋まりました！<br>高度な読み合いによる引き分けでございます。';
+        setDialog(maidPhrases.draw[0]);
+      }
+      overlay.classList.add('show');
+    }
+
+    // AI 思考ルーチン
+    function makeAiMove() {
+      if (gameOver) return;
+      isAiThinking = true;
+      setDialog(maidPhrases.thinking[Math.floor(Math.random() * maidPhrases.thinking.length)]);
+
+      setTimeout(() => {
+        const bestCol = chooseBestMove();
+        dropDisc(bestCol, AI);
+        isAiThinking = false;
+      }, 450);
+    }
+
+    function chooseBestMove() {
+      const validCols = [];
+      for (let c = 0; c < COLS; c++) {
+        if (getLowestEmptyRow(c) !== -1) validCols.push(c);
+      }
+      if (validCols.length === 0) return 0;
+
+      // 1. AIが直ちに勝てる手があるか
+      for (let c of validCols) {
+        const r = getLowestEmptyRow(c);
+        grid[r][c] = AI;
+        const win = checkWin(grid, AI);
+        grid[r][c] = EMPTY;
+        if (win) return c;
+      }
+
+      // 2. プレイヤーが直ちに勝てる手をブロック
+      for (let c of validCols) {
+        const r = getLowestEmptyRow(c);
+        grid[r][c] = PLAYER;
+        const win = checkWin(grid, PLAYER);
+        grid[r][c] = EMPTY;
+        if (win) {
+          setDialog(maidPhrases.playerNearWin[Math.floor(Math.random() * maidPhrases.playerNearWin.length)]);
+          return c;
+        }
+      }
+
+      // 3. 相手に勝ちを与えてしまう手を避ける
+      const safeCols = validCols.filter(c => {
+        const r = getLowestEmptyRow(c);
+        if (r - 1 < 0) return true;
+        grid[r][c] = AI;
+        grid[r-1][c] = PLAYER;
+        const pWin = checkWin(grid, PLAYER);
+        grid[r-1][c] = EMPTY;
+        grid[r][c] = EMPTY;
+        return !pWin;
+      });
+
+      const candidatePool = safeCols.length > 0 ? safeCols : validCols;
+
+      // 4. 中央重視のスコアリング
+      const colWeights = [1, 3, 5, 8, 5, 3, 1];
+      let bestScore = -Infinity;
+      let chosenCol = candidatePool[0];
+
+      for (let c of candidatePool) {
+        let score = colWeights[c] + Math.random() * 2;
+        const r = getLowestEmptyRow(c);
+        grid[r][c] = AI;
+        // 3連を作れるか評価
+        score += evaluatePosition(grid, AI) * 2;
+        grid[r][c] = EMPTY;
+
+        if (score > bestScore) {
+          bestScore = score;
+          chosenCol = c;
+        }
+      }
+      return chosenCol;
+    }
+
+    function evaluatePosition(b, player) {
+      let score = 0;
+      // 簡易連結チェック
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c <= COLS - 4; c++) {
+          const slice = [b[r][c], b[r][c+1], b[r][c+2], b[r][c+3]];
+          score += evaluateWindow(slice, player);
+        }
+      }
+      for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r <= ROWS - 4; r++) {
+          const slice = [b[r][c], b[r+1][c], b[r+2][c], b[r+3][c]];
+          score += evaluateWindow(slice, player);
+        }
+      }
+      return score;
+    }
+
+    function evaluateWindow(window, player) {
+      const opp = (player === PLAYER) ? AI : PLAYER;
+      const pCount = window.filter(x => x === player).length;
+      const emptyCount = window.filter(x => x === EMPTY).length;
+      const oppCount = window.filter(x => x === opp).length;
+
+      if (pCount === 4) return 100;
+      if (pCount === 3 && emptyCount === 1) return 5;
+      if (pCount === 2 && emptyCount === 2) return 2;
+      if (oppCount === 3 && emptyCount === 1) return -4;
+      return 0;
+    }
+
+    // クリック・タップ操作
+    function handleColumnSelect(col) {
+      if (gameOver || isAiThinking || currentTurn !== PLAYER) return;
+      const success = dropDisc(col, PLAYER);
+      if (success && !gameOver) {
+        makeAiMove();
+      }
+    }
+
+    // イベントリスナー
+    boardEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      const col = parseInt(cell.dataset.col, 10);
+      handleColumnSelect(col);
+    });
+
+    // マウスホバーインジケーター
+    boardEl.addEventListener('mousemove', (e) => {
+      if (gameOver || isAiThinking || currentTurn !== PLAYER) {
+        clearIndicators();
+        return;
+      }
+      const cell = e.target.closest('.cell');
+      if (cell) {
+        const col = parseInt(cell.dataset.col, 10);
+        showIndicator(col);
+      }
+    });
+
+    boardEl.addEventListener('mouseleave', clearIndicators);
+
+    function showIndicator(col) {
+      indicators.forEach((ind, idx) => {
+        if (idx === col) ind.classList.add('show');
+        else ind.classList.remove('show');
+      });
+    }
+
+    function clearIndicators() {
+      indicators.forEach(ind => ind.classList.remove('show'));
+    }
+
+    // 待った機能
+    btnUndo.addEventListener('click', () => {
+      if (gameOver || isAiThinking || history.length < 2) return;
+      // AIとプレイヤーの2手を戻す
+      const lastAi = history.pop();
+      grid[lastAi.r][lastAi.col] = EMPTY;
+      const lastPlayer = history.pop();
+      grid[lastPlayer.r][lastPlayer.col] = EMPTY;
+
+      currentTurn = PLAYER;
+      updateTurnDisplay();
+      renderBoard();
+      setDialog('「待ったですか？ ご主人様ったら甘えん坊ですね♡ 今回だけですよ(笑)」');
+    });
+
+    btnReset.addEventListener('click', initBoard);
+    overlayReplayBtn.addEventListener('click', initBoard);
+
+    // 初回起動
+    initBoard();
+  </script>
+</body>
+</html>
