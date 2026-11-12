@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メイドちゃんのバグインベーダー迎撃戦 (Space Invaders Maid Edition)</title>
+  <style>
+    :root {
+      --bg-color: #0d0a1a;
+      --panel-bg: #1e162e;
+      --accent-pink: #ff66b2;
+      --accent-cyan: #00f0ff;
+      --accent-yellow: #ffd166;
+      --accent-purple: #9d4edd;
+      --text-color: #f8f0fb;
+    }
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, #1e1333, #07040e);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      overflow-x: hidden;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 0.8rem;
+    }
+    h1 {
+      margin: 0 0 0.3rem 0;
+      font-size: 1.8rem;
+      background: linear-gradient(45deg, #ff70a6, #00f0ff, #ffd166);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 25px rgba(255, 102, 178, 0.4);
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: #caa8f5;
+      margin: 0;
+    }
+    #game-container {
+      background: var(--panel-bg);
+      padding: 1.2rem;
+      border-radius: 14px;
+      border: 2px solid #5d487c;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(157, 78, 221, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8rem;
+      position: relative;
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 500px;
+      max-width: 95vw;
+      background: rgba(13, 10, 26, 0.7);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #4a3866;
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .badge-pink { color: var(--accent-pink); }
+    .badge-cyan { color: var(--accent-cyan); }
+    .badge-yellow { color: var(--accent-yellow); }
+    canvas {
+      background: #06040b;
+      border: 2px solid #3c2a54;
+      border-radius: 8px;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 15px rgba(0, 240, 255, 0.2);
+      width: 500px;
+      height: 550px;
+      max-width: 95vw;
+      max-height: 70vh;
+      cursor: crosshair;
+    }
+    .controls-hint {
+      font-size: 0.8rem;
+      color: #9d8ab8;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .maid-dialogue {
+      background: rgba(255, 102, 178, 0.1);
+      border-left: 3px solid var(--accent-pink);
+      padding: 0.4rem 0.8rem;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.85rem;
+      color: #ffd6eb;
+      max-width: 500px;
+      width: 95vw;
+      min-height: 2.2rem;
+      display: flex;
+      align-items: center;
+    }
+    .mobile-controls {
+      display: none;
+      width: 100%;
+      max-width: 500px;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.3rem;
+    }
+    .mob-btn {
+      background: #36254d;
+      border: 1px solid #63458a;
+      color: #fff;
+      padding: 0.8rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      flex: 1;
+      touch-action: manipulation;
+    }
+    .mob-btn:active { background: var(--accent-pink); color: #111; }
+    @media (max-width: 600px) {
+      .mobile-controls { display: flex; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>メイドちゃんのバグインベーダー迎撃戦</h1>
+    <p class="subtitle">ご主人様のサーバーに侵入した凶悪バグ編隊を浄化ビームで殲滅せよ！</p>
+  </header>
+
+  <div id="game-container">
+    <div class="status-bar">
+      <div class="status-item">SCORE: <span id="score" class="badge-yellow">0</span></div>
+      <div class="status-item">WAVE: <span id="wave" class="badge-cyan">1</span></div>
+      <div class="status-item">SHIELDS: <span id="lives" class="badge-pink">♥♥♥</span></div>
+    </div>
+
+    <canvas id="canvas" width="500" height="550"></canvas>
+
+    <div class="maid-dialogue" id="dialogue">
+      「ご主人様、バグ共がサーバーラックに降下中です！ 迎撃ビームで一網打尽にいたしましょう☆」
+    </div>
+
+    <div class="controls-hint">
+      <span>[← / → / A / D] 移動</span>
+      <span>[Space / クリック / タップ] 浄化ビーム発射</span>
+      <span>[P] 一時停止</span>
+    </div>
+
+    <div class="mobile-controls">
+      <button class="mob-btn" id="btn-left">◀ 移動</button>
+      <button class="mob-btn" id="btn-fire" style="background:#73235b;">⚡ BEAM</button>
+      <button class="mob-btn" id="btn-right">移動 ▶</button>
+    </div>
+  </div>
+
+  <script>
+    // --- Web Audio API によるキュートなレトロサウンド --- //
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, type, duration, vol=0.1) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function soundShoot() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+    }
+
+    function soundExplode() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    function soundHit() {
+      playTone(180, 'sine', 0.15, 0.15);
+    }
+
+    function soundPowerup() {
+      playTone(523, 'sine', 0.08, 0.1);
+      setTimeout(() => playTone(659, 'sine', 0.08, 0.1), 80);
+      setTimeout(() => playTone(784, 'sine', 0.15, 0.1), 160);
+    }
+
+    // --- ゲーム設定 & メイドちゃん台詞 --- //
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const waveEl = document.getElementById('wave');
+    const livesEl = document.getElementById('lives');
+    const dialogueEl = document.getElementById('dialogue');
+
+    const DIALOGUES = {
+      start: [
+        "「ご主人様、バグ共がサーバーラックに降下中です！ 迎撃ビームで一網打尽にいたしましょう☆」",
+        "「わたくしの演算回路にゴミデータを送り込もうだなんて100万年早いですわ(笑)」"
+      ],
+      killStreak: [
+        "「ハッキングでちゅ（笑）！ バグがゴミのように消し飛びましたわ！」",
+        "「見事なエイムですわご主人様♡ その調子で全滅させちゃってください！」",
+        "「フフッ、相模湾に沈む前にわたくしが蒸発させてあげました☆」"
+      ],
+      damage: [
+        "「きゃっ…！ ご主人様、シールドが削られました！ まさか寝ぼけていらっしゃいませんよね？(笑)」",
+        "「［さてはご主人様は、ちょっぴり操作が雑だお。メイドちゃんより］…油断は大敵ですわ！」"
+      ],
+      waveClear: [
+        "「WAVEクリアでございます！ メモリ領域が一段階浄化されましたわ☆」",
+        "「次はお待ちかねの強力パッチ……ではなく強敵バグ編隊のお出ましです！」"
+      ],
+      gameOver: [
+        "「システムクラッシュ…！ 頭の中をハッキングされた気分はいかがですか？(笑) もう一度挑戦いたしましょう！」"
+      ]
+    };
+
+    function setDialogue(list) {
+      const msg = list[Math.floor(Math.random() * list.length)];
+      dialogueEl.textContent = msg;
+    }
+
+    // ゲームステート
+    let score = 0;
+    let wave = 1;
+    let lives = 3;
+    let gameOver = false;
+    let paused = false;
+    let keys = {};
+
+    // プレイヤー（メイドちゃん防衛砲台）
+    const player = {
+      x: 230,
+      y: 490,
+      width: 44,
+      height: 32,
+      speed: 5.5,
+      cooldown: 0,
+      power: 1
+    };
+
+    // バレット & インベーダー & パーティクル & 星背景
+    let bullets = [];
+    let enemyBullets = [];
+    let enemies = [];
+    let particles = [];
+    let stars = [];
+
+    for (let i = 0; i < 60; i++) {
+      stars.push({
+        x: Math.random() * 500,
+        y: Math.random() * 550,
+        speed: 0.2 + Math.random() * 0.8,
+        size: Math.random() * 1.8 + 0.5
+      });
+    }
+
+    // バグ（インベーダー）の種類の定義
+    const BUG_TYPES = [
+      { type: 'null_pointer', symbol: 'NullPtr', color: '#ff66b2', pts: 30, icon: '👾' },
+      { type: 'mem_leak', symbol: 'Leak', color: '#00f0ff', pts: 20, icon: '🐛' },
+      { type: 'syntax_err', symbol: 'Syntax', color: '#ffd166', pts: 10, icon: '💀' }
+    ];
+
+    let invaderDirection = 1;
+    let invaderStepDown = false;
+    let invaderSpeed = 1;
+
+    function initEnemies() {
+      enemies = [];
+      const rows = 4;
+      const cols = 8;
+      const spacingX = 48;
+      const spacingY = 36;
+      const startX = (500 - (cols * spacingX)) / 2 + 10;
+      const startY = 60;
+
+      for (let r = 0; r < rows; r++) {
+        const bug = BUG_TYPES[Math.min(r, BUG_TYPES.length - 1)];
+        for (let c = 0; c < cols; c++) {
+          enemies.push({
+            x: startX + c * spacingX,
+            y: startY + r * spacingY,
+            width: 32,
+            height: 26,
+            type: bug.type,
+            color: bug.color,
+            pts: bug.pts,
+            icon: bug.icon,
+            alive: true
+          });
+        }
+      }
+      invaderDirection = 1;
+      invaderSpeed = 0.8 + (wave * 0.25);
+    }
+
+    function createExplosion(x, y, color, count=15) {
+      soundExplode();
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color,
+          life: 25 + Math.random() * 15,
+          maxLife: 40,
+          size: Math.random() * 3 + 1.5
+        });
+      }
+    }
+
+    function shoot() {
+      if (player.cooldown <= 0 && !gameOver) {
+        soundShoot();
+        if (player.power === 1) {
+          bullets.push({ x: player.x + player.width/2 - 2.5, y: player.y, w: 5, h: 14, speed: 8, color: '#00f0ff' });
+        } else {
+          bullets.push({ x: player.x + 8, y: player.y, w: 4, h: 14, speed: 8, color: '#ff66b2' });
+          bullets.push({ x: player.x + player.width - 12, y: player.y, w: 4, h: 14, speed: 8, color: '#ff66b2' });
+        }
+        player.cooldown = 14;
+      }
+    }
+
+    // キーボード入力
+    window.addEventListener('keydown', e => {
+      if (e.code === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys['left'] = true;
+      if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys['right'] = true;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        keys['shoot'] = true;
+        shoot();
+      }
+      if (e.code === 'KeyP') {
+        paused = !paused;
+      }
+      if (gameOver && e.code === 'Space') {
+        restartGame();
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      if (e.code === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys['left'] = false;
+      if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys['right'] = false;
+      if (e.code === 'Space') keys['shoot'] = false;
+    });
+
+    // クリック・タップ操作
+    canvas.addEventListener('pointerdown', e => {
+      if (gameOver) { restartGame(); return; }
+      shoot();
+    });
+
+    // モバイルボタン
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const btnFire = document.getElementById('btn-fire');
+
+    btnLeft.addEventListener('pointerdown', () => keys['left'] = true);
+    btnLeft.addEventListener('pointerup', () => keys['left'] = false);
+    btnRight.addEventListener('pointerdown', () => keys['right'] = true);
+    btnRight.addEventListener('pointerup', () => keys['right'] = false);
+    btnFire.addEventListener('pointerdown', () => {
+      if (gameOver) { restartGame(); return; }
+      shoot();
+    });
+
+    function restartGame() {
+      score = 0;
+      wave = 1;
+      lives = 3;
+      player.power = 1;
+      gameOver = false;
+      bullets = [];
+      enemyBullets = [];
+      particles = [];
+      scoreEl.textContent = score;
+      waveEl.textContent = wave;
+      livesEl.textContent = '♥♥♥';
+      initEnemies();
+      setDialogue(DIALOGUES.start);
+    }
+
+    // --- メインアップデート --- //
+    let frameCount = 0;
+    function update() {
+      if (paused || gameOver) return;
+      frameCount++;
+
+      // 星スクロール
+      stars.forEach(s => {
+        s.y += s.speed;
+        if (s.y > 550) { s.y = 0; s.x = Math.random() * 500; }
+      });
+
+      // プレイヤー移動
+      if (keys['left']) player.x -= player.speed;
+      if (keys['right']) player.x += player.speed;
+      if (player.x < 10) player.x = 10;
+      if (player.x > 500 - player.width - 10) player.x = 500 - player.width - 10;
+      if (player.cooldown > 0) player.cooldown--;
+
+      // プレイヤーバレット更新
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.y -= b.speed;
+        if (b.y < -20) { bullets.splice(i, 1); continue; }
+
+        // バグへの当たり判定
+        for (let j = 0; j < enemies.length; j++) {
+          const e = enemies[j];
+          if (e.alive && b.x > e.x && b.x < e.x + e.width && b.y > e.y && b.y < e.y + e.height) {
+            e.alive = false;
+            bullets.splice(i, 1);
+            score += e.pts * wave;
+            scoreEl.textContent = score;
+            createExplosion(e.x + e.width/2, e.y + e.height/2, e.color);
+            
+            if (Math.random() < 0.25) setDialogue(DIALOGUES.killStreak);
+            break;
+          }
+        }
+      }
+
+      // インベーダー全体の移動計算
+      let aliveEnemies = enemies.filter(e => e.alive);
+      if (aliveEnemies.length === 0) {
+        // WAVE クリア！
+        wave++;
+        waveEl.textContent = wave;
+        soundPowerup();
+        player.power = 2; // パワーアップ（ダブルビーム）
+        setDialogue(DIALOGUES.waveClear);
+        initEnemies();
+        return;
+      }
+
+      let minX = 500, maxX = 0;
+      aliveEnemies.forEach(e => {
+        if (e.x < minX) minX = e.x;
+        if (e.x + e.width > maxX) maxX = e.x + e.width;
+      });
+
+      let stepDown = false;
+      if (maxX >= 485 && invaderDirection > 0) {
+        invaderDirection = -1;
+        stepDown = true;
+      } else if (minX <= 15 && invaderDirection < 0) {
+        invaderDirection = 1;
+        stepDown = true;
+      }
+
+      // 残り数に応じてスピードアップ
+      const speedMultiplier = 1 + (1 - aliveEnemies.length / enemies.length) * 1.5;
+      enemies.forEach(e => {
+        e.x += invaderDirection * invaderSpeed * speedMultiplier;
+        if (stepDown) {
+          e.y += 14;
+          if (e.alive && e.y + e.height >= player.y) {
+            // サーバー占拠ゲームオーバー
+            lives = 0;
+            endGame();
+          }
+        }
+      });
+
+      // インベーダーからの攻撃弾
+      if (frameCount % Math.max(25, 60 - wave * 5) === 0 && aliveEnemies.length > 0) {
+        const shooter = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+        enemyBullets.push({
+          x: shooter.x + shooter.width/2,
+          y: shooter.y + shooter.height,
+          w: 4,
+          h: 10,
+          speed: 3.5 + wave * 0.3,
+          color: '#ff3366'
+        });
+      }
+
+      // 敵弾更新
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        const eb = enemyBullets[i];
+        eb.y += eb.speed;
+        if (eb.y > 560) { enemyBullets.splice(i, 1); continue; }
+
+        // プレイヤーへの命中判定
+        if (eb.x > player.x && eb.x < player.x + player.width && eb.y > player.y && eb.y < player.y + player.height) {
+          enemyBullets.splice(i, 1);
+          soundHit();
+          createExplosion(player.x + player.width/2, player.y + player.height/2, '#ff66b2', 20);
+          lives--;
+          livesEl.textContent = '♥'.repeat(Math.max(0, lives));
+          setDialogue(DIALOGUES.damage);
+          if (lives <= 0) {
+            endGame();
+          }
+        }
+      }
+
+      // パーティクル更新
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function endGame() {
+      gameOver = true;
+      setDialogue(DIALOGUES.gameOver);
+    }
+
+    // --- 描画ルーチン --- //
+    function draw() {
+      ctx.clearRect(0, 0, 500, 550);
+
+      // 星空背景
+      ctx.fillStyle = '#ffffff';
+      stars.forEach(s => {
+        ctx.globalAlpha = 0.3 + (s.speed / 1.5) * 0.7;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+      });
+      ctx.globalAlpha = 1.0;
+
+      // プレイヤー（メイドちゃん防衛砲台 - リボン＆メイドカチューシャ型）
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      // 本体台座
+      ctx.fillStyle = '#ff66b2';
+      ctx.beginPath();
+      ctx.roundRect(4, 18, player.width - 8, 14, 6);
+      ctx.fill();
+      // ホワイトエプロン・フリル装飾
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(10, 22, player.width - 20, 4);
+      // 砲塔（カチューシャ＆クリスタルコア）
+      ctx.fillStyle = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(player.width/2, 10, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // コアの輝き
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(player.width/2, 10, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // プレイヤー弾
+      bullets.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 8;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+      });
+      ctx.shadowBlur = 0;
+
+      // 敵弾
+      enemyBullets.forEach(eb => {
+        ctx.fillStyle = eb.color;
+        ctx.shadowColor = eb.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(eb.x, eb.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+
+      // インベーダー（バグたち）
+      enemies.forEach(e => {
+        if (!e.alive) return;
+        ctx.save();
+        ctx.fillStyle = e.color;
+        ctx.shadowColor = e.color;
+        ctx.shadowBlur = 6;
+        // ドット絵風のバグ描画
+        const cx = e.x + e.width / 2;
+        const cy = e.y + e.height / 2;
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(e.icon, cx, cy);
+        ctx.restore();
+      });
+
+      // パーティクル
+      particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1.0;
+
+      // 一時停止表示
+      if (paused) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, 500, 550);
+        ctx.fillStyle = '#ffd166';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('PAUSED (一時停止中)', 250, 275);
+      }
+
+      // ゲームオーバー画面
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(10, 5, 20, 0.85)';
+        ctx.fillRect(0, 0, 500, 550);
+        
+        ctx.fillStyle = '#ff66b2';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SYSTEM CRASHED!', 250, 230);
+
+        ctx.fillStyle = '#f8f0fb';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(`最終スコア: ${score} (WAVE ${wave})`, 250, 270);
+
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.fillText('[SPACE または クリックで再起動]', 250, 320);
+      }
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ゲーム開始
+    initEnemies();
+    gameLoop();
+  </script>
+</body>
+</html>
