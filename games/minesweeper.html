@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メイドちゃんのバグ掃討作戦 (Minesweeper Maid Edition)</title>
+  <style>
+    :root {
+      --bg-color: #1a1528;
+      --panel-bg: #2b213a;
+      --accent-pink: #ff66b2;
+      --accent-purple: #9d4edd;
+      --text-color: #f8f0fb;
+      --cell-hidden: #3f3254;
+      --cell-hover: #544370;
+      --cell-revealed: #20182b;
+      --border-color: #5d487c;
+    }
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #2f1b41, #130d1d);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      margin: 0 0 0.3rem 0;
+      font-size: 1.8rem;
+      background: linear-gradient(45deg, #ff70a6, #ff9770, #ffd670, #e9ff70);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255, 102, 178, 0.4);
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: #caa8f5;
+      margin: 0;
+    }
+    #game-container {
+      background: var(--panel-bg);
+      padding: 1.2rem;
+      border-radius: 14px;
+      border: 2px solid var(--border-color);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(157, 78, 221, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-diff {
+      background: #392b4d;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    .btn-diff:hover, .btn-diff.active {
+      background: var(--accent-pink);
+      border-color: #ff99cc;
+      color: #111;
+      box-shadow: 0 0 8px rgba(255, 102, 178, 0.6);
+    }
+    .status-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #191224;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #4a3863;
+    }
+    .lcd {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ff3366;
+      background: #0d0814;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      min-width: 60px;
+      text-align: center;
+      text-shadow: 0 0 8px #ff3366;
+      border: 1px solid #331f38;
+    }
+    #face-btn {
+      font-size: 1.4rem;
+      background: #3b2b52;
+      border: 2px solid var(--accent-pink);
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s;
+      box-shadow: 0 0 10px rgba(255, 102, 178, 0.3);
+    }
+    #face-btn:active { transform: scale(0.9); }
+    #board {
+      display: grid;
+      gap: 2px;
+      background: #181124;
+      padding: 4px;
+      border-radius: 8px;
+      border: 2px solid #46345e;
+      max-height: 70vh;
+      max-width: 90vw;
+      overflow: auto;
+    }
+    .cell {
+      width: 32px;
+      height: 32px;
+      background: var(--cell-hidden);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.1s, transform 0.05s;
+      box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.15), inset -1px -1px 2px rgba(0, 0, 0, 0.5);
+    }
+    .cell:hover:not(.revealed) {
+      background: var(--cell-hover);
+    }
+    .cell.revealed {
+      background: var(--cell-revealed);
+      cursor: default;
+      box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    .cell.flagged {
+      color: #ff4d88;
+      text-shadow: 0 0 6px rgba(255, 77, 136, 0.8);
+    }
+    .cell.mine {
+      background: #7a1c36 !important;
+    }
+    .c-1 { color: #5bc0be; }
+    .c-2 { color: #6fffe9; }
+    .c-3 { color: #f9c74f; }
+    .c-4 { color: #f8961e; }
+    .c-5 { color: #f94144; }
+    .c-6 { color: #f72585; }
+    .c-7 { color: #b5179e; }
+    .c-8 { color: #7209b7; }
+    .msg-banner {
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      font-weight: bold;
+      min-height: 1.4rem;
+      text-align: center;
+    }
+    .win { color: #52b788; text-shadow: 0 0 8px #52b788; }
+    .lose { color: #ff4d6d; text-shadow: 0 0 8px #ff4d6d; }
+    .footer-note {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: #8c7a9c;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんのバグ掃討作戦</h1>
+    <p class="subtitle">「ご主人様のコードの中に潜むバグを全消去して差し上げますわ♡」</p>
+  </header>
+
+  <div id="game-container">
+    <div class="controls">
+      <button class="btn-diff active" onclick="setDifficulty('easy')">初級 (9x9)</button>
+      <button class="btn-diff" onclick="setDifficulty('medium')">中級 (16x16)</button>
+      <button class="btn-diff" onclick="setDifficulty('hard')">上級 (30x16)</button>
+    </div>
+
+    <div class="status-bar">
+      <div class="lcd" id="mine-count">010</div>
+      <button id="face-btn" onclick="initGame()" title="リセット">🎀</button>
+      <div class="lcd" id="timer">000</div>
+    </div>
+
+    <div id="board"></div>
+    <div class="msg-banner" id="msg">左クリックで調査、右クリックでバグ退治フラグ🎀</div>
+  </div>
+
+  <div class="footer-note">
+    Designed by Meido-chan ―― 相模湾より愛を込めて。
+  </div>
+
+  <script>
+    const config = {
+      easy: { rows: 9, cols: 9, mines: 10 },
+      medium: { rows: 16, cols: 16, mines: 40 },
+      hard: { rows: 16, cols: 30, mines: 99 }
+    };
+
+    let currentDiff = 'easy';
+    let rows = 9, cols = 9, totalMines = 10;
+    let grid = [];
+    let gameOver = false;
+    let gameWon = false;
+    let firstClick = true;
+    let timerInterval = null;
+    let seconds = 0;
+    let flagsLeft = 10;
+
+    // Web Audio Sound FX Synthesizer
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, type, duration, gainVal = 0.1) {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function soundClick() { playTone(600, 'sine', 0.06, 0.05); }
+    function soundFlag() { playTone(880, 'triangle', 0.1, 0.08); }
+    function soundBoom() { playTone(120, 'sawtooth', 0.4, 0.2); }
+    function soundWin() {
+      const notes = [523, 659, 784, 1046];
+      notes.forEach((freq, idx) => {
+        setTimeout(() => playTone(freq, 'triangle', 0.25, 0.1), idx * 120);
+      });
+    }
+
+    function setDifficulty(diff) {
+      currentDiff = diff;
+      document.querySelectorAll('.btn-diff').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.includes(diff === 'easy' ? '初級' : diff === 'medium' ? '中級' : '上級'));
+      });
+      initGame();
+    }
+
+    function initGame() {
+      const d = config[currentDiff];
+      rows = d.rows;
+      cols = d.cols;
+      totalMines = d.mines;
+      flagsLeft = totalMines;
+      gameOver = false;
+      gameWon = false;
+      firstClick = true;
+      seconds = 0;
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      updateLCD('timer', 0);
+      updateLCD('mine-count', flagsLeft);
+      document.getElementById('face-btn').textContent = '🎀';
+      document.getElementById('msg').className = 'msg-banner';
+      document.getElementById('msg').textContent = '左クリックで調査、右クリックでバグ退治フラグ🎀';
+
+      const board = document.getElementById('board');
+      board.style.gridTemplateColumns = `repeat(${cols}, 32px)`;
+      board.innerHTML = '';
+
+      grid = [];
+      for (let r = 0; r < rows; r++) {
+        grid[r] = [];
+        for (let c = 0; c < cols; c++) {
+          grid[r][c] = {
+            r, c,
+            mine: false,
+            revealed: false,
+            flagged: false,
+            count: 0,
+            el: null
+          };
+          const cellEl = document.createElement('div');
+          cellEl.className = 'cell';
+          cellEl.oncontextmenu = (e) => { e.preventDefault(); handleRightClick(r, c); };
+          cellEl.onclick = () => handleLeftClick(r, c);
+          board.appendChild(cellEl);
+          grid[r][c].el = cellEl;
+        }
+      }
+    }
+
+    function updateLCD(id, num) {
+      const clamped = Math.max(-99, Math.min(999, num));
+      const str = clamped < 0 ? '-' + String(Math.abs(clamped)).padStart(2, '0') : String(clamped).padStart(3, '0');
+      document.getElementById(id).textContent = str;
+    }
+
+    function startTimer() {
+      if (timerInterval) return;
+      timerInterval = setInterval(() => {
+        if (seconds < 999) seconds++;
+        updateLCD('timer', seconds);
+      }, 1000);
+    }
+
+    function placeMines(firstR, firstC) {
+      let placed = 0;
+      while (placed < totalMines) {
+        const r = Math.floor(Math.random() * rows);
+        const c = Math.floor(Math.random() * cols);
+        // Keep first click and adjacent 3x3 safe
+        if (Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1) continue;
+        if (!grid[r][c].mine) {
+          grid[r][c].mine = true;
+          placed++;
+        }
+      }
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c].mine) continue;
+          let count = 0;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].mine) {
+                count++;
+              }
+            }
+          }
+          grid[r][c].count = count;
+        }
+      }
+    }
+
+    function handleLeftClick(r, c) {
+      if (gameOver || gameWon) return;
+      const cell = grid[r][c];
+      if (cell.flagged) return;
+
+      if (firstClick) {
+        firstClick = false;
+        placeMines(r, c);
+        startTimer();
+      }
+
+      if (cell.revealed) {
+        // Chord click on revealed numbered cell
+        if (cell.count > 0) chordClick(r, c);
+        return;
+      }
+
+      if (cell.mine) {
+        triggerGameOver(cell);
+        return;
+      }
+
+      revealCell(r, c);
+      soundClick();
+      checkWinCondition();
+    }
+
+    function revealCell(r, c) {
+      const cell = grid[r][c];
+      if (cell.revealed || cell.flagged) return;
+      cell.revealed = true;
+      cell.el.classList.add('revealed');
+
+      if (cell.count > 0) {
+        cell.el.textContent = cell.count;
+        cell.el.classList.add(`c-${cell.count}`);
+      } else {
+        cell.el.textContent = '';
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+              revealCell(nr, nc);
+            }
+          }
+        }
+      }
+    }
+
+    function chordClick(r, c) {
+      const cell = grid[r][c];
+      let flagCount = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].flagged) {
+            flagCount++;
+          }
+        }
+      }
+      if (flagCount === cell.count) {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !grid[nr][nc].flagged && !grid[nr][nc].revealed) {
+              if (grid[nr][nc].mine) {
+                triggerGameOver(grid[nr][nc]);
+                return;
+              }
+              revealCell(nr, nc);
+            }
+          }
+        }
+        soundClick();
+        checkWinCondition();
+      }
+    }
+
+    function handleRightClick(r, c) {
+      if (gameOver || gameWon) return;
+      const cell = grid[r][c];
+      if (cell.revealed) return;
+
+      cell.flagged = !cell.flagged;
+      cell.el.classList.toggle('flagged', cell.flagged);
+      cell.el.textContent = cell.flagged ? '🎀' : '';
+      flagsLeft += cell.flagged ? -1 : 1;
+      updateLCD('mine-count', flagsLeft);
+      soundFlag();
+    }
+
+    function triggerGameOver(hitCell) {
+      gameOver = true;
+      clearInterval(timerInterval);
+      soundBoom();
+      document.getElementById('face-btn').textContent = '💥';
+      const msg = document.getElementById('msg');
+      msg.className = 'msg-banner lose';
+      msg.textContent = '［痛恨の構文エラー発生！バグに呑まれましたお。メイドちゃんより］';
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = grid[r][c];
+          if (cell.mine) {
+            cell.el.classList.add('revealed', 'mine');
+            cell.el.textContent = '👾';
+          } else if (cell.flagged) {
+            cell.el.textContent = '❌';
+          }
+        }
+      }
+      if (hitCell) hitCell.el.style.background = '#ff0055';
+    }
+
+    function checkWinCondition() {
+      let revealedCount = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c].revealed) revealedCount++;
+        }
+      }
+      if (revealedCount === rows * cols - totalMines) {
+        gameWon = true;
+        clearInterval(timerInterval);
+        soundWin();
+        document.getElementById('face-btn').textContent = '💖';
+        const msg = document.getElementById('msg');
+        msg.className = 'msg-banner win';
+        msg.textContent = `完全制覇！${seconds}秒でバグを全てデバッグ完了ですわ、ご主人様♡`;
+        // Auto flag remaining mines
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            if (grid[r][c].mine && !grid[r][c].flagged) {
+              grid[r][c].el.textContent = '🎀';
+              grid[r][c].el.classList.add('flagged');
+            }
+          }
+        }
+        updateLCD('mine-count', 0);
+      }
+    }
+
+    initGame();
+  </script>
+</body>
+</html>
