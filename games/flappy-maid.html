@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Maid</title>
+  <style>
+    body { margin: 0; background: #0f172a; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    canvas { border: 2px solid #38bdf8; border-radius: 8px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); background: #0284c7; }
+    .hint { margin-top: 10px; color: #94a3b8; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <div class="hint">スペースキー または クリック/タップ でジャンプ！</div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let bird = { x: 80, y: 300, vy: 0, gravity: 0.35, jump: -7, radius: 15 };
+    let pipes = [];
+    let frame = 0;
+    let score = 0;
+    let bestScore = 0;
+    let gameState = 'ready'; // ready, playing, gameover
+
+    function resetGame() {
+      bird.y = 300;
+      bird.vy = 0;
+      pipes = [];
+      frame = 0;
+      score = 0;
+      gameState = 'playing';
+    }
+
+    function flap() {
+      if (gameState === 'ready') {
+        resetGame();
+      } else if (gameState === 'playing') {
+        bird.vy = bird.jump;
+      } else if (gameState === 'gameover') {
+        resetGame();
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        flap();
+      }
+    });
+    window.addEventListener('pointerdown', flap);
+
+    function spawnPipe() {
+      const gap = 130;
+      const minH = 60;
+      const maxH = canvas.height - gap - minH;
+      const topH = Math.floor(Math.random() * (maxH - minH)) + minH;
+      pipes.push({
+        x: canvas.width,
+        top: topH,
+        bottom: canvas.height - topH - gap,
+        width: 50,
+        passed: false
+      });
+    }
+
+    function update() {
+      if (gameState === 'playing') {
+        frame++;
+        bird.vy += bird.gravity;
+        bird.y += bird.vy;
+
+        if (frame % 90 === 0) spawnPipe();
+
+        for (let i = pipes.length - 1; i >= 0; i--) {
+          const p = pipes[i];
+          p.x -= 2.5;
+
+          // 衝突判定
+          if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + p.width) {
+            if (bird.y - bird.radius < p.top || bird.y + bird.radius > canvas.height - p.bottom) {
+              gameState = 'gameover';
+            }
+          }
+
+          if (!p.passed && p.x + p.width < bird.x) {
+            p.passed = true;
+            score++;
+            if (score > bestScore) bestScore = score;
+          }
+
+          if (p.x + p.width < 0) pipes.splice(i, 1);
+        }
+
+        if (bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
+          gameState = 'gameover';
+        }
+      }
+    }
+
+    function draw() {
+      // 背景
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 土台
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+      // 土管
+      ctx.fillStyle = '#15803d';
+      pipes.forEach(p => {
+        ctx.fillRect(p.x, 0, p.width, p.top);
+        ctx.fillRect(p.x, canvas.height - p.bottom, p.width, p.bottom);
+      });
+
+      // メイド鳥
+      ctx.save();
+      ctx.translate(bird.x, bird.y);
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.arc(0, 0, bird.radius, 0, Math.PI * 2);
+      ctx.fill();
+      // 目とリボン
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(5, -4, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(6, -4, 2, 0, Math.PI * 2);
+      ctx.fill();
+      // カチューシャ
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-10, -17, 20, 5);
+      ctx.restore();
+
+      // スコア
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      if (gameState === 'playing') {
+        ctx.fillText(score, canvas.width / 2, 50);
+      } else if (gameState === 'ready') {
+        ctx.fillText('FLAPPY MAID', canvas.width / 2, 220);
+        ctx.font = '18px sans-serif';
+        ctx.fillText('クリック または スペースで開始', canvas.width / 2, 270);
+      } else if (gameState === 'gameover') {
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('GAME OVER', canvas.width / 2, 220);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px sans-serif';
+        ctx.fillText('Score: ' + score, canvas.width / 2, 260);
+        ctx.fillText('Best: ' + bestScore, canvas.width / 2, 290);
+        ctx.font = '16px sans-serif';
+        ctx.fillText('クリックしてもう一度プレイ', canvas.width / 2, 340);
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
