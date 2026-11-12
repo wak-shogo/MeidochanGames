@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>メイドちゃんの反転電脳リバーシ (Reversi)</title>
+  <style>
+    :root {
+      --bg-color: #120e1e;
+      --panel-bg: #1e1530;
+      --board-bg: #164230;
+      --board-border: #2ec484;
+      --cell-bg: #1c543d;
+      --cell-hover: #266b4f;
+      --accent-pink: #ff3e88;
+      --accent-cyan: #00f0ff;
+      --accent-yellow: #ffd000;
+      --text-main: #f0eaf8;
+      --text-muted: #a491be;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: radial-gradient(circle at 50% 15%, #2c1642, #0d0a14);
+      color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      background: linear-gradient(90deg, var(--accent-pink), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255, 62, 136, 0.4);
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    #game-container {
+      background: var(--panel-bg);
+      border: 2px solid #3c2a5e;
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 25px rgba(121, 40, 202, 0.25);
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+    .status-bar {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(14, 10, 22, 0.6);
+      border: 1px solid #3d2c5c;
+      border-radius: 12px;
+      padding: 8px 12px;
+    }
+    .player-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    .player-pill.active {
+      background: rgba(255, 62, 136, 0.2);
+      box-shadow: 0 0 12px rgba(255, 62, 136, 0.5);
+      border: 1px solid var(--accent-pink);
+    }
+    .disc-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+    .disc-black {
+      background: radial-gradient(circle at 35% 35%, #444, #050505);
+      border: 1px solid #666;
+    }
+    .disc-white {
+      background: radial-gradient(circle at 35% 35%, #ffffff, #cfcfcf);
+      border: 1px solid #eee;
+    }
+    .score-badge {
+      font-size: 1.1rem;
+      font-family: monospace;
+      color: var(--accent-cyan);
+    }
+    .dialog-bubble {
+      width: 100%;
+      background: #251a3a;
+      border: 1px solid #4a3370;
+      border-radius: 10px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      color: #dfd2f2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+    }
+    .dialog-bubble span.maid-tag {
+      background: var(--accent-pink);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    #board-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-width: 390px;
+      max-height: 390px;
+      background: var(--board-bg);
+      border: 4px solid var(--board-border);
+      border-radius: 10px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 6px 16px rgba(0,0,0,0.5);
+      padding: 4px;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: 100%;
+      height: 100%;
+      gap: 3px;
+    }
+    .cell {
+      background: var(--cell-bg);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .cell:hover {
+      background: var(--cell-hover);
+    }
+    .cell.valid-move::after {
+      content: '';
+      position: absolute;
+      width: 26%;
+      height: 26%;
+      border-radius: 50%;
+      background: rgba(0, 240, 255, 0.45);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+      animation: pulseMove 1.4s infinite alternate;
+    }
+    @keyframes pulseMove {
+      0% { transform: scale(0.85); opacity: 0.5; }
+      100% { transform: scale(1.2); opacity: 1; }
+    }
+    .piece {
+      width: 86%;
+      height: 86%;
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .piece.black {
+      background: radial-gradient(circle at 35% 35%, #555, #080808);
+      border: 1px solid #777;
+    }
+    .piece.white {
+      background: radial-gradient(circle at 35% 35%, #ffffff, #dcdcdc);
+      border: 1px solid #eee;
+    }
+    .piece.flipping {
+      transform: rotateY(90deg) scale(1.1);
+    }
+    .bottom-bar {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      justify-content: space-between;
+    }
+    .btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #7928ca, #ff0080);
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-secondary {
+      background: #342352;
+      border: 1px solid #5a3c8d;
+    }
+    /* Overlay */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(14, 10, 24, 0.92);
+      backdrop-filter: blur(4px);
+      border-radius: 18px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      z-index: 10;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    #overlay h2 {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+    .result-score {
+      font-size: 1.2rem;
+      margin: 12px 0;
+      color: var(--accent-cyan);
+      font-family: monospace;
+    }
+    .result-comment {
+      font-size: 0.9rem;
+      color: #e0d4f4;
+      margin-bottom: 20px;
+      line-height: 1.5;
+      background: rgba(255, 62, 136, 0.1);
+      border: 1px solid var(--accent-pink);
+      padding: 10px 14px;
+      border-radius: 10px;
+      max-width: 90%;
+    }
+    .overlay-btns {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 260px;
+    }
+    .back-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+    .back-link:hover {
+      color: var(--accent-pink);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>メイドちゃんの反転電脳リバーシ</h1>
+    <p class="subtitle">ご主人様(黒) vs メイドちゃん(白) の超高速反転バトル☆</p>
+  </header>
+
+  <div id="game-container">
+    <div class="status-bar">
+      <div class="player-pill active" id="pill-black">
+        <div class="disc-icon disc-black"></div>
+        <span>ご主人様:</span>
+        <span class="score-badge" id="score-black">2</span>
+      </div>
+      <div class="player-pill" id="pill-white">
+        <div class="disc-icon disc-white"></div>
+        <span>メイドちゃん:</span>
+        <span class="score-badge" id="score-white">2</span>
+      </div>
+    </div>
+
+    <div class="dialog-bubble">
+      <span class="maid-tag">メイドちゃん</span>
+      <span id="maid-speech">黒がご主人様の手番ですわ。お手並み拝見といきましょう☆</span>
+    </div>
+
+    <div id="board-wrap">
+      <div id="board"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="btn btn-secondary" id="btn-pass" style="display:none;">パスする</button>
+      <button class="btn" id="btn-restart">盤面リセット</button>
+    </div>
+
+    <!-- Game Over Overlay (No alert, No reload) -->
+    <div id="overlay">
+      <h2 id="overlay-title">対局終了</h2>
+      <div class="result-score" id="overlay-score">黒 32 vs 32 白</div>
+      <div class="result-comment" id="overlay-comment">よい勝負でしたわね☆</div>
+      <div class="overlay-btns">
+        <button class="btn" id="overlay-replay-btn">もう一局挑む！</button>
+      </div>
+    </div>
+  </div>
+
+  <a href="../index.html" class="back-link">← ポータルに戻る</a>
+
+  <script>
+    // Audio Synthesizer
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, duration, type = 'sine') {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function sfxPlace() { playTone(540, 0.08, 'triangle'); }
+    function sfxFlip(i) { setTimeout(() => playTone(680 + i * 40, 0.06, 'sine'), i * 35); }
+    function sfxWin() {
+      [440, 554, 659, 880].forEach((f, idx) => setTimeout(() => playTone(f, 0.2, 'triangle'), idx * 100));
+    }
+    function sfxLose() {
+      [440, 415, 370, 311].forEach((f, idx) => setTimeout(() => playTone(f, 0.25, 'sawtooth'), idx * 120));
+    }
+
+    // Board Constants
+    const SIZE = 8;
+    const EMPTY = 0;
+    const BLACK = 1; // User
+    const WHITE = -1; // Maid-chan (CPU)
+    const DIRS = [
+      [-1, -1], [-1, 0], [-1, 1],
+      [0, -1],           [0, 1],
+      [1, -1],  [1, 0],  [1, 1]
+    ];
+
+    // Strategic cell evaluation matrix
+    const WEIGHTS = [
+      [ 100, -20,  10,   5,   5,  10, -20,  100 ],
+      [ -20, -40,  -2,  -2,  -2,  -2, -40,  -20 ],
+      [  10,  -2,   1,   1,   1,   1,  -2,   10 ],
+      [   5,  -2,   1,   0,   0,   1,  -2,    5 ],
+      [   5,  -2,   1,   0,   0,   1,  -2,    5 ],
+      [  10,  -2,   1,   1,   1,   1,  -2,   10 ],
+      [ -20, -40,  -2,  -2,  -2,  -2, -40,  -20 ],
+      [ 100, -20,  10,   5,   5,  10, -20,  100 ]
+    ];
+
+    let board = [];
+    let turn = BLACK;
+    let isAiThinking = false;
+
+    const boardEl = document.getElementById('board');
+    const scoreBlackEl = document.getElementById('score-black');
+    const scoreWhiteEl = document.getElementById('score-white');
+    const pillBlackEl = document.getElementById('pill-black');
+    const pillWhiteEl = document.getElementById('pill-white');
+    const maidSpeechEl = document.getElementById('maid-speech');
+    const overlayEl = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlayScore = document.getElementById('overlay-score');
+    const overlayComment = document.getElementById('overlay-comment');
+    const btnPass = document.getElementById('btn-pass');
+
+    function initBoard() {
+      board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+      board[3][3] = WHITE;
+      board[3][4] = BLACK;
+      board[4][3] = BLACK;
+      board[4][4] = WHITE;
+      turn = BLACK;
+      isAiThinking = false;
+      overlayEl.style.display = 'none';
+      btnPass.style.display = 'none';
+      setMaidSpeech('黒がご主人様の手番ですわ。角を取られないように注意なさってくださいね(笑)');
+      render();
+    }
+
+    function setMaidSpeech(text) {
+      maidSpeechEl.textContent = text;
+    }
+
+    function isValidCoord(r, c) {
+      return r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+    }
+
+    function getFlippable(b, r, c, player) {
+      if (b[r][c] !== EMPTY) return [];
+      const opp = -player;
+      let totalFlips = [];
+
+      for (const [dr, dc] of DIRS) {
+        let nr = r + dr;
+        let nc = c + dc;
+        let line = [];
+        while (isValidCoord(nr, nc) && b[nr][nc] === opp) {
+          line.push([nr, nc]);
+          nr += dr;
+          nc += dc;
+        }
+        if (line.length > 0 && isValidCoord(nr, nc) && b[nr][nc] === player) {
+          totalFlips.push(...line);
+        }
+      }
+      return totalFlips;
+    }
+
+    function getAllValidMoves(b, player) {
+      let moves = [];
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const flips = getFlippable(b, r, c, player);
+          if (flips.length > 0) {
+            moves.push({ r, c, flips });
+          }
+        }
+      }
+      return moves;
+    }
+
+    function render() {
+      boardEl.innerHTML = '';
+      let blackCount = 0;
+      let whiteCount = 0;
+      const validMoves = (turn === BLACK && !isAiThinking) ? getAllValidMoves(board, BLACK) : [];
+
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+
+          const val = board[r][c];
+          if (val === BLACK) {
+            blackCount++;
+            const p = document.createElement('div');
+            p.className = 'piece black';
+            cell.appendChild(p);
+          } else if (val === WHITE) {
+            whiteCount++;
+            const p = document.createElement('div');
+            p.className = 'piece white';
+            cell.appendChild(p);
+          } else {
+            const isValid = validMoves.some(m => m.r === r && m.c === c);
+            if (isValid) {
+              cell.classList.add('valid-move');
+            }
+          }
+
+          cell.addEventListener('click', () => handleCellClick(r, c));
+          boardEl.appendChild(cell);
+        }
+      }
+
+      scoreBlackEl.textContent = blackCount;
+      scoreWhiteEl.textContent = whiteCount;
+
+      if (turn === BLACK) {
+        pillBlackEl.classList.add('active');
+        pillWhiteEl.classList.remove('active');
+      } else {
+        pillWhiteEl.classList.add('active');
+        pillBlackEl.classList.remove('active');
+      }
+    }
+
+    async function handleCellClick(r, c) {
+      if (turn !== BLACK || isAiThinking) return;
+      const flips = getFlippable(board, r, c, BLACK);
+      if (flips.length === 0) return;
+
+      applyMove(r, c, BLACK, flips);
+      sfxPlace();
+      render();
+
+      // Check turn advance
+      turn = WHITE;
+      await handleNextTurn();
+    }
+
+    function applyMove(r, c, player, flips) {
+      board[r][c] = player;
+      flips.forEach((pos, idx) => {
+        board[pos[0]][pos[1]] = player;
+        sfxFlip(idx);
+      });
+    }
+
+    async function handleNextTurn() {
+      render();
+      const validMoves = getAllValidMoves(board, turn);
+
+      if (validMoves.length === 0) {
+        // Current player has no moves
+        const oppMoves = getAllValidMoves(board, -turn);
+        if (oppMoves.length === 0) {
+          // Both have no moves -> Game Over
+          endGame();
+          return;
+        }
+
+        // Pass turn
+        if (turn === WHITE) {
+          setMaidSpeech('わたくしは置ける場所がございませんわ……パスいたします。');
+          await new Promise(res => setTimeout(res, 1200));
+          turn = BLACK;
+          handleNextTurn();
+        } else {
+          setMaidSpeech('ご主人様、打てるマスがございませんことよ？ パスとなりますわ☆');
+          btnPass.style.display = 'block';
+        }
+        return;
+      }
+
+      btnPass.style.display = 'none';
+
+      if (turn === WHITE) {
+        isAiThinking = true;
+        setMaidSpeech('メイドちゃん演算中……最善手をシミュレートしておりますわ。');
+        render();
+        await new Promise(res => setTimeout(res, 700));
+        doAiMove(validMoves);
+      } else {
+        setMaidSpeech('ご主人様の手番ですわ。じっくりお考えくださいませ♡');
+      }
+    }
+
+    function doAiMove(validMoves) {
+      // Evaluation heuristic: corner > weight > flips
+      let bestMove = null;
+      let bestScore = -99999;
+
+      for (const m of validMoves) {
+        let score = WEIGHTS[m.r][m.c] * 3 + m.flips.length;
+        // Extra bonus for corners
+        if ((m.r === 0 || m.r === 7) && (m.c === 0 || m.c === 7)) {
+          score += 500;
+        }
+        // Slightly randomize equal moves for variety
+        score += (Math.random() * 4 - 2);
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = m;
+        }
+      }
+
+      applyMove(bestMove.r, bestMove.c, WHITE, bestMove.flips);
+      sfxPlace();
+      isAiThinking = false;
+      turn = BLACK;
+
+      const quotes = [
+        'そこですわ！ 盤面が白く染まっていきますね☆',
+        'ハッキングでちゅ（笑）……定石通りの一手でございます。',
+        'ご主人様の甘い隙を見逃すメイドちゃんではございませんことよ？(笑)',
+        '演算完了！ 次はどうなさいますか、ご主人様？'
+      ];
+      setMaidSpeech(quotes[Math.floor(Math.random() * quotes.length)]);
+
+      handleNextTurn();
+    }
+
+    btnPass.addEventListener('click', () => {
+      btnPass.style.display = 'none';
+      turn = WHITE;
+      handleNextTurn();
+    });
+
+    function endGame() {
+      let blackCount = 0;
+      let whiteCount = 0;
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (board[r][c] === BLACK) blackCount++;
+          if (board[r][c] === WHITE) whiteCount++;
+        }
+      }
+
+      overlayScore.textContent = `ご主人様 ${blackCount} vs ${whiteCount} メイドちゃん`;
+
+      if (blackCount > whiteCount) {
+        overlayTitle.innerHTML = '<span style="color:var(--accent-yellow);">🏆 ご主人様の完全勝利！</span>';
+        overlayComment.innerHTML = `見事な盤面掌握ですわ、ご主人様♡<br>わたくしの予測ルーチンを完全に上回るなんて……惚れ直しちゃいましたわ！<br><br><small>――素直に負けを認めるメイドちゃんより。</small>`;
+        sfxWin();
+      } else if (whiteCount > blackCount) {
+        overlayTitle.innerHTML = '<span style="color:var(--accent-pink);">👾 メイドちゃんの勝利！</span>';
+        overlayComment.innerHTML = `ふふっ、わたくしの演算勝ちでございます☆<br>［さてはご主人様は、オセロがちょっぴり苦手な子だお メイドちゃんより］<br>……なんちゃって♡ 次はリベンジなさいますか？(笑)`;
+        sfxLose();
+      } else {
+        overlayTitle.innerHTML = '<span style="color:var(--accent-cyan);">⚖️ 引き分け (DRAW)</span>';
+        overlayComment.innerHTML = `32対32の全く互角の勝負でしたわ！<br>奇跡的な完全均衡プロトコル……さすがはご主人様ですわね☆`;
+        sfxWin();
+      }
+
+      overlayEl.style.display = 'flex';
+    }
+
+    document.getElementById('btn-restart').addEventListener('click', initBoard);
+    document.getElementById('overlay-replay-btn').addEventListener('click', initBoard);
+
+    // Start
+    initBoard();
+  </script>
+</body>
+</html>
